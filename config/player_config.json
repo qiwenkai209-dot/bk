@@ -1,0 +1,78 @@
+{
+  "resolution": {
+    "width": 1920,
+    "height": 1080
+  },
+  "position": {
+    "monitor_index": 1,
+    "fullscreen": true,
+    "x": 3072,
+    "y": 0,
+    "target_screen_index": 1
+  },
+  "playback": {
+    "current_media": "待机/41725fa36359f354ea4931120da94730.mp4",
+    "volume": 16,
+    "muted": false,
+    "loop": true,
+    "blackout": false,
+    "freeze": false,
+    "mode": "ATTRACT",
+    "idle_media": "待机/41725fa36359f354ea4931120da94730.mp4",
+    "idle_timeout": 60,
+    "startup_folder": "待机",
+    "current_folder": "待机",
+    "startup_mode": "FOLDER_LOOP",
+    "scale_mode": "contain",
+    "loop_mode": "FOLDER_LOOP",
+    "startup_auto_play": false,
+    "orientation": "landscape",
+    "selected_ip": "192.168.110.99",
+    "switch_policy": "FINISHED",
+    "cycle_duration": 30,
+    "touch_mode": false
+  },
+  "external_apps": [
+    {
+      "id": "app_02",
+      "name": "展厅PPT多媒体课件",
+      "path": "C:\\Windows\\write.exe",
+      "args": "",
+      "desc": "主讲人多媒体PPT演示"
+    },
+    {
+      "id": "app_1791003766364",
+      "name": "PotPlayerMini64.exe - 快捷方式",
+      "path": "C:\\Users\\mac\\Desktop\\PotPlayerMini64.exe - 快捷方式.lnk",
+      "args": ""
+    }
+  ],
+  "system": {
+    "stream_quality": "1080p",
+    "cast_device_name": "VisualCast 展厅大屏"
+  },
+  "subtitle": {
+    "enabled": false,
+    "text": "热烈欢迎各位领导与专家\n莅临指导参观！",
+    "position": "center",
+    "font_size": 96,
+    "color": "#ecb009",
+    "bg_color": "transparent",
+    "transparent_bg": true,
+    "speed": 0,
+    "mode": "static"
+  },
+  "scheduled_shutdown": {
+    "enabled": false,
+    "time": "21:30",
+    "weekdays": [
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7
+    ]
+  }
+}

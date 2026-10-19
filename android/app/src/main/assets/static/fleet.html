@@ -1,0 +1,905 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VisualCast 局域网大屏在线设备中枢</title>
+  <style>
+    :root {
+      --bg-primary: #0a0f1d;
+      --bg-secondary: #0f172a;
+      --bg-card: rgba(30, 41, 59, 0.7);
+      --bg-card-hover: rgba(51, 65, 85, 0.8);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-glow: rgba(0, 240, 255, 0.4);
+      --accent-cyan: #00f0ff;
+      --accent-blue: #38bdf8;
+      --accent-purple: #c084fc;
+      --accent-green: #10b981;
+      --accent-amber: #f59e0b;
+      --accent-red: #ef4444;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+
+    body {
+      background: radial-gradient(circle at 20% 20%, #111a33 0%, #0a0f1d 100%);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow-x: hidden;
+    }
+
+    /* 顶部导航与操作栏 */
+    header {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 16px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .brand-logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #0284c7, #6366f1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      box-shadow: 0 0 20px rgba(2, 132, 199, 0.4);
+    }
+
+    .brand-title {
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      background: linear-gradient(90deg, #fff, var(--accent-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .brand-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+
+    .actions-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .stat-badge {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-color);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+
+    .stat-badge strong {
+      color: var(--accent-cyan);
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border: 1px solid transparent;
+      outline: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #0284c7, #2563eb);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(37, 99, 235, 0.3);
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #0369a1, #1d4ed8);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 20px rgba(37, 99, 235, 0.45);
+    }
+
+    .btn-secondary {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.12);
+      color: var(--text-main);
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.1);
+      border-color: var(--accent-cyan);
+    }
+
+    /* 扫描雷达与提示条 */
+    .scanning-banner {
+      background: linear-gradient(90deg, rgba(2, 132, 199, 0.15), rgba(99, 102, 241, 0.15));
+      border-bottom: 1px solid rgba(56, 189, 248, 0.25);
+      padding: 10px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      color: #7dd3fc;
+      transition: all 0.3s ease;
+    }
+    .scanning-banner.hidden {
+      display: none;
+    }
+
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid rgba(0, 240, 255, 0.3);
+      border-top-color: var(--accent-cyan);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* 主体内容网格 */
+    main {
+      flex: 1;
+      max-width: 1440px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 28px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 12px;
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .devices-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+      gap: 20px;
+    }
+
+    /* 单个设备卡片 */
+    .device-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 14px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+      position: relative;
+      overflow: hidden;
+      backdrop-filter: blur(12px);
+    }
+
+    .device-card:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-glow);
+      transform: translateY(-3px);
+      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4), 0 0 20px rgba(0, 240, 255, 0.15);
+    }
+
+    .device-card.is-self {
+      border-color: rgba(56, 189, 248, 0.4);
+      background: linear-gradient(145deg, rgba(15, 23, 42, 0.8), rgba(30, 58, 138, 0.2));
+    }
+
+    .card-top {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .device-icon-box {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+
+    .device-info {
+      flex: 1;
+      min-width: 0;
+    }
+
+    .name-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .custom-name-input {
+      background: transparent;
+      border: 1px dashed transparent;
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 6px;
+      width: 100%;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    .custom-name-input:hover {
+      border-color: rgba(255, 255, 255, 0.25);
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .custom-name-input:focus {
+      border-color: var(--accent-cyan);
+      background: #0f172a;
+      box-shadow: 0 0 0 2px rgba(0, 240, 255, 0.2);
+    }
+
+    .device-ip-badge {
+      font-size: 12px;
+      color: var(--accent-cyan);
+      font-family: Consolas, monospace;
+      margin-top: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 12px;
+      background: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      white-space: nowrap;
+    }
+
+    .status-pill.offline {
+      background: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    .status-pill.syncing {
+      background: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border-color: rgba(245, 158, 11, 0.3);
+    }
+
+    .card-meta-list {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      background: rgba(0, 0, 0, 0.2);
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .meta-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .meta-val {
+      color: #e2e8f0;
+      font-weight: 500;
+      max-width: 180px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* 快捷进入按键组 */
+    .card-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+      margin-top: auto;
+    }
+
+    .btn-card-action {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      padding: 8px 6px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text-main);
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      transition: all 0.15s ease;
+    }
+
+    .btn-card-action:hover {
+      background: rgba(0, 240, 255, 0.12);
+      border-color: rgba(0, 240, 255, 0.4);
+      color: var(--accent-cyan);
+      transform: translateY(-1px);
+    }
+
+    .btn-card-action.danger {
+      grid-column: span 3;
+      color: #f87171;
+      padding: 4px;
+      font-size: 11px;
+      border: none;
+      background: transparent;
+    }
+    .btn-card-action.danger:hover {
+      color: #ef4444;
+      text-decoration: underline;
+    }
+
+    /* 空态与骨架屏 */
+    .empty-state {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 2px dashed rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      text-align: center;
+      gap: 14px;
+    }
+
+    .empty-icon {
+      font-size: 48px;
+      opacity: 0.6;
+    }
+
+    /* 弹窗模态框 */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.7);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 999;
+      opacity: 1;
+      transition: opacity 0.2s ease;
+    }
+
+    .modal-overlay.hidden {
+      display: none;
+    }
+
+    .modal-box {
+      background: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 14px;
+      width: 90%;
+      max-width: 440px;
+      overflow: hidden;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+      animation: modalIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes modalIn {
+      from { transform: scale(0.95); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+
+    .modal-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .modal-body {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .input-field {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: #080d1a;
+      border: 1px solid #334155;
+      color: #fff;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s ease;
+    }
+    .input-field:focus {
+      border-color: var(--accent-cyan);
+    }
+
+    /* Toast 消息提醒 */
+    #toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 1000;
+    }
+
+    .toast-msg {
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid var(--accent-cyan);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      animation: toastIn 0.2s ease;
+    }
+
+    @keyframes toastIn {
+      from { transform: translateX(50px); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <!-- 顶部状态栏 -->
+  <header>
+    <div class="brand">
+      <div class="brand-logo">🌐</div>
+      <div>
+        <div class="brand-title">VisualCast 局域网大屏在线设备中枢</div>
+        <div class="brand-sub">全网大屏自动发现 · 别名固化 · 多端秒级直达控制</div>
+      </div>
+    </div>
+
+    <div class="actions-bar">
+      <div class="stat-badge">
+        <span>在线设备:</span>
+        <strong id="stat-online-count">0</strong>
+        <span>台</span>
+      </div>
+      <button class="btn btn-secondary" id="btn-manual-add" title="手动录入固定IP或跨网段大屏">
+        <span>➕</span> 手动录入
+      </button>
+      <button class="btn btn-primary" id="btn-scan-lan" title="重新并发探测局域网所有在线大屏">
+        <span id="scan-icon">🔍</span>
+        <span id="scan-text">并发全网扫描</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- 扫描进行中提示横幅 -->
+  <div id="scanning-banner" class="scanning-banner hidden">
+    <div style="display:flex; align-items:center; gap:10px;">
+      <div class="spinner"></div>
+      <span id="scanning-msg">正在高速多线程探测局域网 (1~254) 播控节点...</span>
+    </div>
+    <span style="font-size:12px; opacity:0.8;">端口: 8088 (直连不走代理)</span>
+  </div>
+
+  <!-- 主体网格区 -->
+  <main>
+    <div class="section-header">
+      <div class="section-title">
+        <span>🖥️ 在线大屏终端矩阵</span>
+        <span style="font-size:12px; color:var(--text-muted); font-weight:normal;" id="scan-summary-tip">加载中...</span>
+      </div>
+      <div style="font-size:12px; color:var(--text-muted);">
+        提示: 点击设备名称即可直接原地重命名
+      </div>
+    </div>
+
+    <div id="devices-grid" class="devices-grid">
+      <!-- 动态注入设备卡片 -->
+    </div>
+  </main>
+
+  <!-- 手动录入设备模态窗口 -->
+  <div id="modal-add-device" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 style="font-size:15px; font-weight:700; color:#fff;">➕ 手动录入大屏设备</h3>
+        <button id="btn-close-modal" style="background:none; border:none; color:var(--text-muted); font-size:18px; cursor:pointer;">✕</button>
+      </div>
+      <div class="modal-body">
+        <div>
+          <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:6px;">大屏 IP 地址 (必填):</label>
+          <input type="text" id="input-modal-ip" class="input-field" placeholder="例如: 192.168.1.108" />
+        </div>
+        <div>
+          <label style="font-size:12px; color:var(--text-muted); display:block; margin-bottom:6px;">自定义设备别名 (选填):</label>
+          <input type="text" id="input-modal-name" class="input-field" placeholder="例如: 展厅二楼东侧立式大屏" />
+        </div>
+        <div style="display:flex; gap:10px; margin-top:8px;">
+          <button class="btn btn-secondary" id="btn-modal-cancel" style="flex:1;">取消</button>
+          <button class="btn btn-primary" id="btn-modal-submit" style="flex:2;">💾 探测并录入</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast 提醒容器 -->
+  <div id="toast-container"></div>
+
+  <script>
+    const devicesGrid = document.getElementById('devices-grid');
+    const statOnlineCount = document.getElementById('stat-online-count');
+    const btnScanLan = document.getElementById('btn-scan-lan');
+    const scanIcon = document.getElementById('scan-icon');
+    const scanText = document.getElementById('scan-text');
+    const scanningBanner = document.getElementById('scanning-banner');
+    const scanSummaryTip = document.getElementById('scan-summary-tip');
+
+    const btnManualAdd = document.getElementById('btn-manual-add');
+    const modalAddDevice = document.getElementById('modal-add-device');
+    const btnCloseModal = document.getElementById('btn-close-modal');
+    const btnModalCancel = document.getElementById('btn-modal-cancel');
+    const btnModalSubmit = document.getElementById('btn-modal-submit');
+    const inputModalIp = document.getElementById('input-modal-ip');
+    const inputModalName = document.getElementById('input-modal-name');
+
+    let isScanning = false;
+
+    function showToast(message, isError = false) {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = 'toast-msg';
+      if (isError) {
+        toast.style.borderColor = '#ef4444';
+      }
+      toast.innerHTML = `<span>${isError ? '⚠️' : '✅'}</span><span>${message}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(10px)';
+        toast.style.transition = 'all 0.3s ease';
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    // 渲染设备卡片
+    function renderDevices(devices) {
+      if (!devices || devices.length === 0) {
+        devicesGrid.innerHTML = `
+          <div class="empty-state">
+            <div class="empty-icon">📡</div>
+            <div style="font-size:16px; font-weight:600; color:#fff;">暂未发现局域网在线大屏</div>
+            <div style="font-size:13px; color:var(--text-muted); max-width:400px; line-height:1.5;">
+              请确保大屏主机已启动 VisualCast 并连接至同一局域网 WiFi / 交换机。您可点击右上角“并发全网扫描”或“手动录入”。
+            </div>
+            <button class="btn btn-primary" onclick="triggerScan()" style="margin-top:8px;">🔍 立即扫描全网</button>
+          </div>
+        `;
+        statOnlineCount.textContent = '0';
+        scanSummaryTip.textContent = '未检索到活跃节点';
+        return;
+      }
+
+      statOnlineCount.textContent = devices.filter(d => d.status === 'online').length;
+      scanSummaryTip.textContent = `共记录 ${devices.length} 台设备 (在线 ${statOnlineCount.textContent} 台)`;
+
+      devicesGrid.innerHTML = devices.map(dev => {
+        const isSelf = dev.is_self;
+        const displayName = dev.custom_name || dev.hostname || `VisualCast (${dev.ip})`;
+        const isOnline = dev.status === 'online';
+        const statusClass = isOnline ? '' : (dev.status === 'syncing' ? 'syncing' : 'offline');
+        const statusText = isOnline ? '● 在线放映中' : (dev.status === 'syncing' ? '● 集群同步中' : (isSelf ? '○ 播控未启动' : '○ 离线/未检测到端口'));
+        const orientationIcon = dev.orientation === 'portrait' ? '📱 竖屏' : '🖥️ 横屏';
+
+        return `
+          <div class="device-card ${isSelf ? 'is-self' : ''}" data-ip="${dev.ip}">
+            <div class="card-top">
+              <div class="device-icon-box">
+                ${isSelf ? '💻' : (dev.orientation === 'portrait' ? '📱' : '🖥️')}
+              </div>
+              <div class="device-info">
+                <div class="name-row">
+                  <input type="text" class="custom-name-input" value="${displayName}" data-ip="${dev.ip}" title="点击可修改设备自定义名称，回车自动保存" />
+                </div>
+                <div class="device-ip-badge">
+                  <span>${dev.ip}:${dev.port || 8088}</span>
+                  ${dev.platform ? `<span style="color:${dev.platform === 'Android' ? '#4ade80' : '#38bdf8'}; font-size:11px; background:rgba(255,255,255,0.08); padding:1px 6px; border-radius:4px;">${dev.platform === 'Android' ? '🤖 Android' : (dev.platform === 'Windows' ? '🪟 Windows' : dev.platform)}</span>` : ''}
+                  ${isSelf ? '<span style="color:#38bdf8; font-size:11px; background:rgba(56,189,248,0.12); padding:1px 6px; border-radius:4px;">当前本机</span>' : ''}
+                </div>
+              </div>
+              <div class="status-pill ${statusClass}">${statusText}</div>
+            </div>
+
+            <div class="card-meta-list">
+              <div class="meta-item">
+                <span>屏幕形态:</span>
+                <span class="meta-val">${orientationIcon}</span>
+              </div>
+              <div class="meta-item">
+                <span>当前放映:</span>
+                <span class="meta-val" title="${dev.current_media || '就绪'}">${dev.current_media || '待机海报'}</span>
+              </div>
+              <div class="meta-item">
+                <span>最后活跃:</span>
+                <span class="meta-val">${dev.last_seen || '实时'}</span>
+              </div>
+            </div>
+
+            <div class="card-actions">
+              <a href="${dev.admin_url || `http://${dev.ip}:8088/admin`}" target="_blank" class="btn-card-action" title="进入该大屏专属管理后台">
+                <span>🛠️</span>
+                <span>管理后台</span>
+              </a>
+              <a href="${dev.player_url || `http://${dev.ip}:8088/player`}" target="_blank" class="btn-card-action" title="在新标签页直接查看该大屏画面">
+                <span>🖥️</span>
+                <span>大屏放映</span>
+              </a>
+              <a href="${dev.remote_url || `http://${dev.ip}:8088/remote`}" target="_blank" class="btn-card-action" title="打开该大屏的手机端遥控器手牌">
+                <span>📱</span>
+                <span>掌上手牌</span>
+              </a>
+              <button class="btn-card-action" onclick="probeSingleDevice('${dev.ip}', this)" title="单独重新检测此大屏是否在线">
+                <span>🔄</span>
+                <span>检测状态</span>
+              </button>
+              ${!isSelf ? `
+                <button class="btn-card-action danger" onclick="deleteDeviceNode('${dev.ip}')" title="从列表移除此设备">
+                  ✕ 移除
+                </button>
+              ` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // 单个设备实时探活
+      window.probeSingleDevice = async function(ip, btn) {
+        if (!ip) return;
+        const origText = btn.innerHTML;
+        btn.disabled = true;
+        btn.innerHTML = '<span>⏳</span><span>探测中...</span>';
+        try {
+          const res = await fetch('/api/devices/probe', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ip })
+          });
+          const json = await res.json();
+          if (json.status === 'ok' && json.device) {
+            const isOnline = json.device.status === 'online';
+            showToast(`设备 ${ip} 检测完成: ${isOnline ? '🟢 在线连通' : '⚪ 离线未响应'}`);
+            fetchDevices();
+          } else {
+            showToast(`设备 ${ip} 探测未响应`, true);
+          }
+        } catch (e) {
+          showToast(`探测请求异常: ${e}`, true);
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = origText;
+        }
+      };
+
+      // 绑定重命名输入框事件
+      document.querySelectorAll('.custom-name-input').forEach(input => {
+        input.addEventListener('change', async (e) => {
+          const ip = e.target.getAttribute('data-ip');
+          const newName = e.target.value.trim();
+          await saveDeviceRename(ip, newName);
+        });
+        input.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.target.blur();
+          }
+        });
+      });
+    }
+
+    // 获取并渲染列表
+    async function fetchDevices() {
+      try {
+        const res = await fetch('/api/devices/list');
+        const data = await res.json();
+        if (data && data.status === 'ok') {
+          renderDevices(data.devices);
+          if (data.is_scanning) {
+            setScanningState(true);
+          }
+        }
+      } catch (e) {
+        console.error('获取设备列表异常:', e);
+      }
+    }
+
+    // 设置扫描 UI 状态
+    function setScanningState(scanning) {
+      isScanning = scanning;
+      if (scanning) {
+        scanningBanner.classList.remove('hidden');
+        btnScanLan.disabled = true;
+        scanIcon.innerHTML = '<span class="spinner" style="display:inline-block;"></span>';
+        scanText.textContent = '正在并发探测中...';
+      } else {
+        scanningBanner.classList.add('hidden');
+        btnScanLan.disabled = false;
+        scanIcon.textContent = '🔍';
+        scanText.textContent = '并发全网扫描';
+      }
+    }
+
+    // 触发扫描
+    async function triggerScan() {
+      if (isScanning) return;
+      setScanningState(true);
+      showToast('已启动局域网 254 节点高速并发扫描...');
+      try {
+        const res = await fetch('/api/devices/scan', { method: 'POST' });
+        const data = await res.json();
+        if (data && data.status === 'ok') {
+          renderDevices(data.devices);
+          showToast(`扫描完毕，共发现 ${data.count || 0} 个大屏节点`);
+        }
+      } catch (e) {
+        showToast('扫描网络请求超时或异常', true);
+      } finally {
+        setScanningState(false);
+      }
+    }
+
+    // 保存别名
+    async function saveDeviceRename(ip, customName) {
+      try {
+        const res = await fetch('/api/devices/rename', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ip, custom_name: customName })
+        });
+        const data = await res.json();
+        if (data && data.status === 'ok') {
+          showToast(`已成功保存别名: ${customName}`);
+        } else {
+          showToast(data.message || '重命名保存失败', true);
+        }
+      } catch (e) {
+        showToast('网络通信异常，别名未保存', true);
+      }
+    }
+
+    // 删除设备
+    window.deleteDeviceNode = async function(ip) {
+      if (!confirm(`确定要从列表中移除大屏设备 ${ip} 吗？`)) return;
+      try {
+        const res = await fetch('/api/devices/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ip })
+        });
+        const data = await res.json();
+        if (data && data.status === 'ok') {
+          showToast(`设备 ${ip} 已移除`);
+          fetchDevices();
+        }
+      } catch (e) {
+        showToast('移除失败', true);
+      }
+    };
+
+    // 手动录入
+    btnManualAdd.addEventListener('click', () => {
+      inputModalIp.value = '';
+      inputModalName.value = '';
+      modalAddDevice.classList.remove('hidden');
+      inputModalIp.focus();
+    });
+
+    btnCloseModal.addEventListener('click', () => modalAddDevice.classList.add('hidden'));
+    btnModalCancel.addEventListener('click', () => modalAddDevice.classList.add('hidden'));
+
+    btnModalSubmit.addEventListener('click', async () => {
+      const ip = inputModalIp.value.trim();
+      const custom_name = inputModalName.value.trim();
+      if (!ip) {
+        showToast('请输入有效的设备 IP 地址', true);
+        return;
+      }
+      btnModalSubmit.disabled = true;
+      btnModalSubmit.textContent = '探测中...';
+      try {
+        const res = await fetch('/api/devices/manual_add', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ip, custom_name })
+        });
+        const data = await res.json();
+        if (data && data.status === 'ok') {
+          showToast(`设备 ${ip} 录入成功！`);
+          modalAddDevice.classList.add('hidden');
+          fetchDevices();
+        } else {
+          showToast(data.message || '录入失败，未能建立握手', true);
+        }
+      } catch (e) {
+        showToast('网络请求异常', true);
+      } finally {
+        btnModalSubmit.disabled = false;
+        btnModalSubmit.textContent = '💾 探测并录入';
+      }
+    });
+
+    btnScanLan.addEventListener('click', triggerScan);
+
+    // 页面启动初始化
+    fetchDevices();
+    // 首次进入自动做一次局域网静默探测
+    setTimeout(() => {
+      triggerScan();
+    }, 600);
+    // 4 秒心跳平滑保活
+    setInterval(fetchDevices, 4000);
+  </script>
+</body>
+</html>

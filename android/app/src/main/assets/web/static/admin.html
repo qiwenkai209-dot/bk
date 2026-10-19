@@ -1,0 +1,1667 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>VisualCast 展馆可视化智能播控全能中枢</title>
+  <link rel="stylesheet" href="/static/admin.css" />
+  <link rel="icon" href="/assets/favicon.ico" type="image/x-icon" />
+</head>
+<body>
+  <!-- 顶部科技感极简中枢导航栏 -->
+  <header class="app-header">
+    <div class="brand-area">
+      <div class="brand-logo">
+        <span class="logo-core"></span>
+      </div>
+      <div class="brand-text">
+        <div class="system-name">VisualCast</div>
+        <div class="system-sub">展馆可视化智能播控全能中枢</div>
+      </div>
+    </div>
+
+    <!-- 移动端展开/折叠汉堡按键 -->
+    <button id="btn-mobile-menu" class="btn-mobile-menu" aria-label="切换状态栏" title="展开/收起菜单栏">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+
+    <div class="header-status" id="header-status-panel">
+      <!-- 核心态势胶囊群 -->
+      <div class="status-item header-status-pill">
+        <span id="player-indicator" class="status-dot online"></span>
+        <span id="player-status-text">大屏在线</span>
+      </div>
+
+      <!-- 讲解员无线手牌端入口 (醒目翡翠绿，直达新窗口) -->
+      <a href="/remote" target="_blank" class="status-item remote-link-badge" title="打开讲解员掌上手牌 (手机/iPad 扫码直连，大触控防误触)">
+        <span class="badge-icon">📱</span>
+        <span>讲解员手牌</span>
+      </a>
+
+      <!-- 局域网无线扫码投屏控制入口 -->
+      <div class="status-item cast-badge clickable-badge" id="btn-open-cast-modal" title="开启局域网无线扫码投屏 (手机/电脑免装客户端直连)">
+        <span class="badge-icon">📡</span>
+        <span id="cast-status-indicator">无线投屏</span>
+      </div>
+
+      <!-- 本机 IP (点击快速复制) -->
+      <div class="status-item ip-badge" id="header-ip-badge" title="点击复制控制后台访问地址" style="cursor:pointer;">
+        <span class="badge-icon">🌐</span>
+        <span id="header-ip">127.0.0.1:8088</span>
+      </div>
+
+
+      <!-- U 盘热插拔同步状态 -->
+      <div class="status-item usb-badge" id="header-usb-badge" title="U盘即插即用素材热更新状态 (点击可手动立即全量扫描)">
+        <span class="badge-icon">💾</span>
+        <span id="header-usb-text">U盘就绪</span>
+      </div>
+
+      <!-- 商业授权状态 (双击或点击查看商业授权信息) -->
+      <div class="status-item license-badge clickable-badge" id="header-license-badge" title="双击或点击进入授权管理界面" style="border-color: rgba(245,158,11,0.5); color: #fbbf24; cursor:pointer;">
+        <span class="badge-icon">🛡️</span>
+        <span id="license-status-text">⚠️ 未授权</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- 主体工作区容器：上半部大屏监控与素材库并列 + 下半部主机控制与环境设备通栏 -->
+  <main class="workspace-layout-v2">
+    
+    <!-- ==================== 上半部：核心作业区 (大屏监控与素材库并列跟随) ==================== -->
+    <div class="top-operation-row">
+      
+      <!-- 1. 左侧：大屏实况监视 (Live Mirror Echo) + 紧随其下的播控台 -->
+      <div class="top-monitor-col">
+        <section id="sec-monitor" class="card echo-main-card">
+          <div class="card-header">
+            <div class="card-title">
+              <span class="radar-dot"></span>
+              大屏实况监视
+            </div>
+            
+            <div class="echo-tags-group">
+              <!-- 物理屏幕选择下拉菜单 -->
+              <div class="monitor-select-wrapper" title="选择大屏呈现窗口所在的物理显示屏">
+                <span class="select-icon">🖥️</span>
+                <select id="select-monitor">
+                  <option value="0">检测屏幕中...</option>
+                </select>
+              </div>
+
+              <!-- 1080P 全高清专属回显品质徽章 -->
+              <div class="stream-quality-fixed-badge" title="1080P 全高清实况回显">
+                <span class="badge-dot pulse-cyan"></span>
+                <span class="quality-label">1080P 回显</span>
+              </div>
+
+              <!-- HTTP 动图流传输帧率选择下拉菜单 -->
+              <div class="monitor-select-wrapper echo-fps-select-wrapper" title="选择 HTTP 动图流推流帧率 (FPS)">
+                <span class="select-icon">⚡</span>
+                <select id="select-echo-fps">
+                  <option value="5">5 FPS</option>
+                  <option value="10">10 FPS</option>
+                  <option value="12" selected>12 FPS</option>
+                  <option value="15">15 FPS</option>
+                  <option value="20">20 FPS</option>
+                  <option value="25">25 FPS</option>
+                </select>
+              </div>
+
+              <span class="mode-tag-live" id="echo-mode-badge">待机</span>
+              <button class="echo-badge clickable-badge" id="btn-return-player" title="结束第三方/文档放映，将大屏切回播放视窗" style="background:rgba(239,68,68,0.2); border-color:rgba(239,68,68,0.5); color:#fca5a5; display:inline-flex; align-items:center; gap:3px;">🔙 返回大屏</button>
+              <button class="echo-badge clickable-badge" id="echo-window-badge" title="点击一键将大屏播放视窗全屏置顶">⛶ 窗口置顶</button>
+            </div>
+          </div>
+          
+          <!-- 放大版回显大屏幕 (16:9 高清比例，ScreenStream HTTP 动图流协议推流) -->
+          <div class="echo-screen-container-large" id="echo-container" style="position:relative;">
+            <img id="echo-img" class="echo-screen" src="/api/stream/live.mjpeg" alt="ScreenStream 实时回显" style="object-fit:cover;width:100%;height:100%;" onerror="setTimeout(()=>{this.src='/api/stream/live.mjpeg?t='+Date.now()}, 2000)" />
+            <div class="echo-overlay-bar">
+              <div class="echo-left-info">
+                <span class="echo-tag" id="echo-state-tag">PLAYING</span>
+                <span class="echo-media-name" id="echo-media-title">demo_show.mp4</span>
+              </div>
+              <div class="echo-right-info" id="echo-extra-info">
+                HTTP动图流 · 12 FPS
+              </div>
+            </div>
+          </div>
+
+          <!-- 自适应播放调度控制台 (紧随回显大屏下方，操作顺手无割裂) -->
+          <div class="playback-control-panel-large">
+            
+            <!-- 播放进度时间轴 (与上方视频回显窗口严格等长，全宽无缝对齐) -->
+            <div class="progress-bar-row full-width-progress" id="timeline-progress-row">
+              <div class="slider-wrapper full-width-slider">
+                <input type="range" id="timeline-progress" min="0" max="100" value="0" step="0.1" title="拖动进度条调整播放位置" />
+              </div>
+              <div class="progress-time-meta">
+                <span id="time-display" class="time-readout">00:00:00 / 00:00:00</span>
+              </div>
+            </div>
+
+            <!-- 动态按键区 1：视频 / 音频通用主控按键组 -->
+            <div class="control-actions-row" id="video-ctrl-group">
+              <button id="btn-prev" class="btn-ctrl" title="上一个素材">⏮</button>
+              <button id="btn-play" class="btn-ctrl primary" title="播放 / 暂停">▶</button>
+              <button id="btn-stop" class="btn-ctrl" title="停止">⏹</button>
+              <button id="btn-next" class="btn-ctrl" title="下一个素材">⏭</button>
+              <button id="btn-scale-mode" class="btn-special" title="画面拉伸模式：全屏拉伸 / 等比居中">⛶ 全屏拉伸</button>
+              <button id="btn-admin-orientation" class="btn-special" title="切换大屏横竖屏方向：🖥️ 横屏 / 📱 竖屏">🖥️ 横屏模式</button>
+              
+              <button id="btn-blackout" class="btn-special danger" title="演播级一键纯黑场 (FTB)">⬛ 黑场</button>
+              <button id="btn-freeze" class="btn-special" title="演播级一键静帧 (Freeze)">❄️ 静帧</button>
+            </div>
+
+            <!-- 动态按键区 2：PPT / PDF / 演示文稿控制栏 (全部常驻展示，无需切换) -->
+            <div class="control-actions-row doc-ctrl-row" id="doc-ctrl-group">
+              <span class="doc-ctrl-label"><span class="badge-icon">📑</span> 演示放映控制:</span>
+              <button id="btn-doc-prev" class="btn-ctrl-doc" title="上一页 / 上一张 (PageUp / 方向键左)">◀ 上一页 (PageUp)</button>
+              <button id="btn-doc-pause" class="btn-ctrl-doc" title="暂停或继续 PPT 放映动画 (按键 S)">⏸ 暂停放映 (S)</button>
+              <button id="btn-doc-play" class="btn-ctrl-doc primary" title="演示文稿开始放映 / 从头全屏放映 (F5)">⏵ 全屏放映 (F5)</button>
+              <button id="btn-doc-next" class="btn-ctrl-doc" title="下一页 / 下一张 (PageDown / 方向键右 / 空格)">下一页 (PageDown) ▶</button>
+              <button id="btn-doc-exit" class="btn-ctrl-doc danger" title="结束当前演示文稿放映，退出并平滑恢复待机 (Esc)">⏹ 结束放映 (Esc)</button>
+            </div>
+
+            <!-- 动态按键区 3：网页 / H5 / 直播流按键组 (全部常驻展示，无需切换) -->
+            <div class="control-actions-row stream-ctrl-row" id="stream-ctrl-group">
+              <span class="doc-ctrl-label"><span class="badge-icon">🌐</span> 页面与流媒体:</span>
+              <button id="btn-stream-refresh" class="btn-ctrl-doc">🔄 刷新页面 / 重载流</button>
+            </div>
+
+            <!-- 音量控制底栏 (精简大气，删除无交互死标签) -->
+            <div class="volume-and-quick-bar">
+              <div class="volume-slider-group">
+                <button id="btn-mute" class="btn-mute" title="一键静音/取消静音">🔊</button>
+                <input type="range" id="volume-slider" min="0" max="100" value="85" />
+                <span id="volume-val-text" class="vol-text">85%</span>
+              </div>
+              <div class="quick-status-tags">
+                <span class="live-status-indicator"><span class="mini-pulse"></span>低延迟同步通道就绪</span>
+              </div>
+            </div>
+
+          </div>
+        </section>
+      </div>
+
+      <!-- 2. 右侧：素材库管理 (跟随大屏实时监控，并列对齐) -->
+      <div class="top-media-col">
+        <section id="sec-media" class="card media-library-card">
+          
+          <div class="media-library-header">
+            <div class="card-title">
+              📁 素材库管理
+              <span class="media-count-badge" id="media-total-count">0</span>
+            </div>
+            
+            <div class="media-header-actions">
+              <!-- 字幕配置与网页流码直达按键 -->
+              <button id="btn-open-subtitle-modal" class="btn-action-ghost" title="配置大屏顶层悬浮/跑马灯字幕">📢 顶层字幕</button>
+              <button id="btn-open-custom-media-modal" class="btn-action-ghost highlight" title="添加网页或网络直播流 (将在素材文件夹中自动生成 .txt 文档)">🌐 添加网页流码</button>
+              <!-- 上传主按钮 -->
+              <label class="btn-upload-label" for="file-uploader" title="批量多格式上传至当前选定分类 (支持视频、图片、音频、文档、流码.txt)">
+                📤 上传素材
+              </label>
+              <input type="file" id="file-uploader" multiple accept="*/*" style="display: none;" />
+            </div>
+          </div>
+
+          <!-- 标准 7 大素材分类导航胶囊与播控条 (待机-音乐-图片-视频-文档-网页-流码，全部放到最后) -->
+          <div class="standard-categories-bar">
+            <button class="std-cat-btn standby-cat active" data-folder="待机">🏠 待机</button>
+            <button class="std-cat-btn" data-folder="音乐">🎵 音乐</button>
+            <button class="std-cat-btn" data-folder="图片">🖼️ 图片</button>
+            <button class="std-cat-btn" data-folder="视频">🎬 视频</button>
+            <button class="std-cat-btn" data-folder="文档">📑 文档</button>
+            <button class="std-cat-btn" data-folder="网页_流码">🌐 网页\流码</button>
+            <button class="std-cat-btn" data-folder="ALL">全部</button>
+            <div style="flex:1;"></div>
+            <button id="btn-play-current-folder" class="btn-action-small highlight" title="点击切换播放模式：🔁 全部循环 / 🔂 单个循环 / ⏹ 播放一次">🔁 全部循环</button>
+          </div>
+          <select id="folder-select" style="display:none;"></select>
+
+          <!-- 素材跨文件夹复制/剪切/粘贴高亮操作条 -->
+          <div id="media-clipboard-bar" class="media-clipboard-bar hidden">
+            <div class="clipboard-info-wrap">
+              <span id="clipboard-action-tag" class="clipboard-tag copy">📋 复制中</span>
+              <span id="clipboard-filename" class="clipboard-filename">素材名称</span>
+              <span class="clipboard-folder-desc">来自: <b id="clipboard-from-folder" style="color:#00f0ff;">待机</b></span>
+              <span class="clipboard-arrow">➡</span>
+              <span class="clipboard-folder-desc">当前目标分类: <b id="clipboard-target-folder" style="color:#10b981;">待机</b></span>
+            </div>
+            <div class="clipboard-actions">
+              <button id="btn-paste-media" class="btn-clipboard-paste" title="将剪贴板素材粘贴存入当前分类文件夹">📋 粘贴至当前分类</button>
+              <button id="btn-cancel-clipboard" class="btn-clipboard-cancel" title="清空剪贴板并取消复制剪切">✕ 取消</button>
+            </div>
+          </div>
+
+          <!-- 可折叠提示区 -->
+          <div id="collapsible-hints-box" class="collapsible-hints-box hidden">
+            <div class="upload-drag-hint" id="drop-zone">
+              <span class="hint-icon">📂</span>
+              <span>支持拖拽文件直接上传，或插入 U 盘自动增量覆盖</span>
+            </div>
+          </div>
+
+          <!-- 素材卡片列表容器 -->
+          <div class="media-list-scrollable" id="media-grid">
+            <!-- 动态渲染素材卡片行 -->
+          </div>
+
+        </section>
+      </div>
+
+    </div>
+
+    <!-- ==================== 下半部：通栏控制区 ==================== -->
+    <div class="bottom-controls-row">
+      
+      <!-- 1. 系统运维中枢 -->
+      <section id="sec-host" class="card host-card ops-hub-card">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="icon-monitor">🛠️</span> 系统运维中枢
+          </div>
+        </div>
+
+        <!-- 硬件监测四联仪表盘 (CPU / 内存 / GPU / 系统运行态势) -->
+        <div class="ops-telemetry-grid">
+          <!-- CPU 监控卡片 -->
+          <div class="telemetry-card">
+            <div class="telemetry-header">
+              <span class="telemetry-title">🔲 处理器 CPU</span>
+              <span class="telemetry-value-pct" id="hw-cpu-pct">0.0%</span>
+            </div>
+            <div class="hw-bar-bg">
+              <div class="hw-bar-fill" id="hw-cpu-bar" style="width: 0%;"></div>
+            </div>
+            <div class="telemetry-subinfo">
+              <span class="sub-label" id="hw-cpu-cores">核心: 检测中...</span>
+              <span class="sub-desc text-ellipsis" id="hw-cpu-model" title="CPU型号">加载中...</span>
+            </div>
+          </div>
+
+          <!-- 内存 监控卡片 -->
+          <div class="telemetry-card">
+            <div class="telemetry-header">
+              <span class="telemetry-title">💾 物理内存 RAM</span>
+              <span class="telemetry-value-pct" id="hw-mem-pct">0.0%</span>
+            </div>
+            <div class="hw-bar-bg">
+              <div class="hw-bar-fill warning" id="hw-mem-bar" style="width: 0%;"></div>
+            </div>
+            <div class="telemetry-subinfo">
+              <span class="sub-label" id="hw-mem-used">已用: -- / -- GB</span>
+              <span class="sub-desc" id="hw-mem-avail">可用: -- GB</span>
+            </div>
+          </div>
+
+          <!-- GPU 监控卡片 -->
+          <div class="telemetry-card">
+            <div class="telemetry-header">
+              <span class="telemetry-title">🎮 图形渲染 GPU</span>
+              <span class="telemetry-value-pct" id="hw-gpu-pct">0.0%</span>
+            </div>
+            <div class="hw-bar-bg">
+              <div class="hw-bar-fill cyan" id="hw-gpu-bar" style="width: 0%;"></div>
+            </div>
+            <div class="telemetry-subinfo">
+              <span class="sub-label text-ellipsis" id="hw-gpu-name" title="显卡型号">显卡检测中...</span>
+              <span class="sub-desc" id="hw-gpu-status">硬件加速就绪</span>
+            </div>
+          </div>
+
+          <!-- 系统运行态势卡片 -->
+          <div class="telemetry-card">
+            <div class="telemetry-header">
+              <span class="telemetry-title">⏱️ 系统运行态势</span>
+              <span class="telemetry-uptime-tag" id="hw-run-uptime">00:00:00</span>
+            </div>
+            <div class="telemetry-ports-row">
+              <span class="port-tag" id="port-http" title="HTTP 服务端口 8088">HTTP:8088 🟢</span>
+              <span class="port-tag" id="port-iot-tcp" title="IoT TCP 通信端口 8000">TCP:8000 ⚪</span>
+              <span class="port-tag" id="port-iot-udp" title="IoT UDP 通信端口 8001">UDP:8001 🟢</span>
+              <span class="port-tag" id="port-sync" title="毫秒级多机联播通信端口 8002">SYNC:8002 🟢</span>
+            </div>
+            <div class="telemetry-subinfo">
+              <span class="sub-label" id="hw-run-pid">PID: --</span>
+              <span class="sub-desc text-ellipsis" id="hw-run-boot" title="开机时间">开机: --</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 系统视窗、主音量交互与安全电源控制中枢 (按用户指定布局重构) -->
+        <div class="host-controls-grid">
+          <!-- 1. 系统运维中枢：音量控制、开关机、定时设置、网卡信息 -->
+          <div class="host-control-box">
+            <div class="control-box-title">⚡ 系统运维中枢</div>
+            <div class="sys-vol-btn-group">
+              <button id="btn-sys-vol-down" class="btn-sys-tool" title="系统主音量 -">🔉 音量 -</button>
+              <button id="btn-sys-vol-up" class="btn-sys-tool" title="系统主音量 +">🔊 音量 +</button>
+              <button id="btn-sys-vol-mute" class="btn-sys-tool" title="系统全局静音切换">🔇 全局静音</button>
+              <!-- 安卓 APK 专属运维按钮 (无重启，无关机)：唤醒 (关闭黑场播放待机) 与 待机 (开启黑场停止放映) -->
+              <button id="btn-action-wakeup" class="btn-sys-tool" style="color:#10b981; border-color:rgba(16,185,129,0.45); background:rgba(16,185,129,0.12); font-weight:700; display:none;" title="大屏唤醒：关闭黑场，播放待机文件恢复放映">☀️ 唤醒</button>
+              <button id="btn-action-sleep" class="btn-sys-tool" style="color:#a855f7; border-color:rgba(168,85,247,0.45); background:rgba(168,85,247,0.12); font-weight:700; display:none;" title="大屏待机：开启黑场，停止放映">🌙 待机</button>
+              <!-- Windows EXE 专属运维按钮 (无开机)：关机 (调用系统底层关机命令) 与 重启 (调用系统底层重启命令) -->
+              <button id="btn-action-shutdown" class="btn-sys-tool" style="color:#ef4444; border-color:rgba(239,68,68,0.45); background:rgba(239,68,68,0.12); font-weight:700;" title="大屏主机安全关机：调用系统底层安全关机命令">🛑 关机</button>
+              <button id="btn-action-reboot" class="btn-sys-tool" style="color:#f59e0b; border-color:rgba(245,158,11,0.45); background:rgba(245,158,11,0.12); font-weight:700;" title="大屏主机安全重启：调用系统底层安全重启命令">🔄 重启</button>
+              <button id="btn-action-poweron" style="display:none;"></button>
+              <button id="btn-sys-scheduled-shutdown" class="btn-sys-tool" style="color:#0ea5e9; border-color:rgba(14,165,233,0.35); background:rgba(14,165,233,0.1);" title="配置大屏定时关机排程 (点击弹出设置界面)">
+                <span id="sys-sched-indicator" class="status-dot"></span>
+                <span id="sys-sched-text">⏰ 定时设置</span>
+              </button>
+              <button id="btn-sys-network-config" class="btn-sys-tool" style="color:#00f0ff; border-color:rgba(0,240,255,0.35); background:rgba(0,240,255,0.08);" title="查看并配置局域网通信网卡与IP (点击弹出设置界面)">
+                <span id="sys-net-indicator" class="status-dot online"></span>
+                <span id="sys-net-text">🌐 通信网卡</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 2. 视窗与显示控制：无线投屏、最小化大屏、触摸交互、投影屏幕、开机自启检测放在一块 -->
+          <div class="host-control-box">
+            <div class="control-box-title">🖥️ 视窗与显示控制</div>
+            <div class="sys-vol-btn-group">
+              <button id="btn-quick-cast" class="btn-sys-tool highlight" style="color:#00f0ff; border-color:rgba(0,240,255,0.4); background:rgba(0,240,255,0.12);" title="开启系统级无线投屏 (支持苹果 AirPlay / 安卓多屏互动 / Win+K 无需扫码)">📡 无线投屏</button>
+              <button id="btn-touch-mode-toggle" class="btn-sys-tool touch-mode-toggle-btn" title="开启/关闭大屏窗口左右选择按钮 (按下大屏显示左右选择触控按键，弹起隐藏)">
+                <span class="touch-dot"></span>
+                <span id="touch-mode-text">👆 触摸交互: 关闭</span>
+              </button>
+              <button id="btn-sys-autostart-toggle" class="btn-sys-tool autostart-toggle" title="配置 Windows 开机自动拉起播控">
+                <span id="sys-autostart-indicator" class="status-dot"></span>
+                <span id="sys-autostart-text">自启检查中...</span>
+              </button>
+              <button id="btn-save-all-sys-config" class="btn-sys-tool" style="color:#38bdf8; border-color:rgba(56,189,248,0.4); background:rgba(56,189,248,0.12);" title="保存后台所有播控参数与系统配置，下次开机自动加载">💾 保存配置</button>
+              <button id="btn-refresh-hardware" class="btn-sys-tool" title="刷新硬件与系统运行状态">🔄 刷新状态</button>
+            </div>
+          </div>
+
+          <!-- 3. 管理员安全与商业授权：管理员删除右上角图标与商业授权放在一块 -->
+          <div class="host-control-box">
+            <div class="control-box-title">🛡️ 商业授权与管理员安全</div>
+            <div class="sys-power-btn-group">
+              <button id="btn-sec-license" class="btn-sys-tool" style="color:#10b981; border-color:rgba(16,185,129,0.35); background:rgba(16,185,129,0.1); font-weight:700;" title="查看商业授权状态、复制申请码与输入激活码">
+                <span id="sys-lic-indicator" class="status-dot"></span>
+                <span id="sys-lic-text">🛡️ 商业授权</span>
+              </button>
+              <div class="admin-user-pill" style="display:inline-flex; align-items:center; gap:6px; padding:6px 12px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.12); border-radius:6px; font-size:12px; color:#e2e8f0; font-weight:600;">
+                <span>👤</span>
+                <span id="admin-panel-user-name">管理员 (admin)</span>
+              </div>
+              <button id="btn-sec-change-pwd" class="btn-sys-tool" style="color:#38bdf8; border-color:rgba(56,189,248,0.35); background:rgba(56,189,248,0.1);" title="修改后台管理员登录密码">🔐 修改密码</button>
+              <button id="btn-auth-logout" class="btn-sys-tool" style="color:#ef4444; border-color:rgba(239,68,68,0.35); background:rgba(239,68,68,0.1); font-weight:700;" title="安全退出当前管理员登录">🚪 退出登录</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 多机集群联播控制中枢 (默认折叠收起) -->
+        <div class="sync-hub-box collapsed" id="sync-hub-box">
+          <div class="sync-hub-header" id="sync-hub-header-trigger" title="点击展开/折叠多机集群联播控制中枢">
+            <div class="sync-title-wrap">
+              <span class="sync-icon">📡</span>
+              <div class="sync-meta">
+                <div class="sync-main-title-row">
+                  <span class="sync-main-title">多机集群联播中枢</span>
+                  <span class="sync-badge-role" id="sync-role-badge">👑 播控主控机 (Master)</span>
+                  <span class="sync-summary-slaves-tag" id="sync-summary-slaves-tag">0 台从机就绪</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="sync-header-controls">
+              <button class="btn-sync-toggle" id="btn-sync-toggle" type="button">
+                <span id="sync-toggle-text">展开面板</span>
+                <span class="sync-toggle-icon" id="sync-toggle-icon">▾</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 折叠内容区 (角色切换、遥测状态栏、从机节点拓扑网格) -->
+          <div class="sync-hub-collapse-content" id="sync-hub-collapse-content">
+            <div class="sync-role-row">
+              <span class="sync-role-title">本机角色：</span>
+              <div class="sync-role-selector-group">
+                <button class="btn-role-tab active" id="btn-role-master" data-role="MASTER" title="设为主控机：广播时钟与选片进度">👑 主控主机</button>
+                <button class="btn-role-tab" id="btn-role-slave" data-role="SLAVE" title="设为从机：跟随主控机同步播放">🖥️ 同步从机</button>
+                <button class="btn-role-tab" id="btn-role-standalone" data-role="STANDALONE" title="独立单机模式">⚪ 独立单机</button>
+              </div>
+            </div>
+
+            <!-- 主从网络直连与永久固化配置行 -->
+            <div class="sync-ip-config-row" id="sync-ip-config-row" style="margin: 8px 0 14px 0; padding: 10px 14px; background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 8px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+              <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+                <span class="sync-role-title" id="sync-ip-label" style="font-weight: 600; color: #38bdf8;">🎯 目标节点 IP:</span>
+                <input type="text" id="sync-target-ip-input" class="form-control" style="width: 200px; padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.4); background: rgba(15, 23, 42, 0.8); color: #fff; font-size: 13px; font-family: monospace;" placeholder="例如: 192.168.3.17" />
+                <button type="button" id="btn-save-sync-config" class="btn-sync-action highlight" style="padding: 6px 14px; font-size: 12px; background: linear-gradient(135deg, #0284c7, #0369a1);" title="保存当前联播角色与目标 IP 配置">💾 保存配置</button>
+              </div>
+            </div>
+
+            <div class="sync-hub-body">
+              <!-- 集群遥测状态栏 -->
+              <div class="sync-telemetry-strip">
+                <div class="sync-strip-item">
+                  <span class="strip-label">集群运行模式:</span>
+                  <span class="strip-val highlight" id="sync-tele-mode">MASTER (主控广播)</span>
+                </div>
+                <div class="sync-strip-item">
+                  <span class="strip-label">在线从机:</span>
+                  <span class="strip-val" id="sync-tele-slaves-count">0 台从机就绪</span>
+                </div>
+                <div class="sync-strip-item">
+                  <span class="strip-label">时钟基准:</span>
+                  <span class="strip-val" id="sync-tele-offset">±0.0 ms (本端主钟)</span>
+                </div>
+                <div class="sync-actions-group">
+                  <button id="btn-sync-all-config" class="btn-sync-action highlight" style="background: linear-gradient(135deg, #10b981, #059669); border-color: #34d399;" title="将当前主机的画面比例、跑马灯字幕、音量、待机与轮播策略等所有设置一键广播并直推给所有从机">⚡ 同步所有设置到从机</button>
+                  <button id="btn-sync-calibrate" class="btn-sync-action highlight" title="向局域网广播精准对齐脉冲，校准全网从机播放相位">🎯 精准校准</button>
+                  <button id="btn-sync-refresh" class="btn-sync-action" title="即时向局域网广播探测在线从机并刷新节点拓扑">🔍 探测从机</button>
+                </div>
+              </div>
+
+              <!-- 在线从机节点网格卡片 (动态渲染) -->
+              <div class="sync-nodes-grid" id="sync-nodes-container">
+                <div class="sync-node-empty" id="sync-nodes-empty">
+                  <span class="empty-icon">🌐</span>
+                  <span>局域网暂无从机连接</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+        <!-- 定时开关机排程控制中枢 (已改为点击运维中枢定时按钮弹窗展示) -->
+        <div class="collapsible-hub-box collapsed" id="sched-hub-box" style="display: none;">
+          <div class="collapsible-hub-header" id="sched-hub-header-trigger" title="点击展开/折叠定时开关机排程中枢">
+            <div class="collapsible-title-wrap">
+              <span class="collapsible-icon">⏰</span>
+              <div class="collapsible-meta">
+                <div class="collapsible-main-title-row">
+                  <span class="collapsible-main-title">现场定时关机排程</span>
+                  <span class="collapsible-badge-tag" id="sched-hub-badge">○ 检查排程中...</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="collapsible-header-controls">
+              <button class="btn-collapsible-toggle" id="btn-sched-toggle" type="button">
+                <span id="sched-toggle-text">展开面板</span>
+                <span class="collapsible-toggle-icon" id="sched-toggle-icon">▾</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 折叠内容区 -->
+          <div class="collapsible-hub-content" id="sched-hub-content">
+            <div id="sched-panel-status-banner" class="sched-banner-box">
+              <span class="banner-icon">ℹ️</span>
+              <span id="sched-panel-status-desc">正在获取今日开关机排程状态...</span>
+            </div>
+
+            <div class="sched-form-grid">
+              <!-- 功能总开关：启动定时排程 -->
+              <div class="sched-card-row">
+                <div style="display:flex; flex-direction:column; gap:2px;">
+                  <span class="sched-field-label" style="font-weight:700;">启动定时</span>
+                  <span style="font-size:11px; color:#94a3b8;">在设定的关机时间休眠/关机，在开启时间自动唤醒放映</span>
+                </div>
+                <label class="switch-toggle">
+                  <input type="checkbox" id="chk-sched-panel-enable">
+                  <span class="slider round"></span>
+                </label>
+              </div>
+
+              <!-- 每日开机与关机时间 -->
+              <div class="sched-times-row" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
+                <div class="sched-time-item" style="border:1px solid rgba(16,185,129,0.3); border-radius:8px; padding:8px 10px; background:rgba(0,0,0,0.25);">
+                  <span class="time-label" style="color:#34d399; font-weight:600; display:block; margin-bottom:4px;">☀️ 每日定时开启 (安卓):</span>
+                  <input type="time" id="input-sched-panel-boot-time" value="08:30" class="time-input" style="color:#34d399; font-weight:700;">
+                </div>
+                <div class="sched-time-item" style="border:1px solid rgba(0,240,255,0.3); border-radius:8px; padding:8px 10px; background:rgba(0,0,0,0.25);">
+                  <span class="time-label text-cyan" style="font-weight:600; display:block; margin-bottom:4px;">🌙 每日定时关机时间:</span>
+                  <input type="time" id="input-sched-panel-time" value="21:30" class="time-input" style="color:#00f0ff; font-weight:700;">
+                </div>
+              </div>
+
+              <!-- 自定义关机日期 -->
+              <div class="sched-days-box">
+                <div class="sched-days-header">
+                  <span class="sched-field-label">📅 排程运行日期:</span>
+                  <div class="quick-days-actions">
+                    <span id="btn-quick-panel-all" class="quick-link">全选</span>
+                    <span id="btn-quick-panel-workdays" class="quick-link">工作日</span>
+                    <span id="btn-quick-panel-weekends" class="quick-link">周末</span>
+                  </div>
+                </div>
+                <div class="weekday-chips-grid">
+                  <label class="weekday-chip" data-day="1"><input type="checkbox" class="sched-panel-chk-weekday" value="1" style="display:none;">周一</label>
+                  <label class="weekday-chip" data-day="2"><input type="checkbox" class="sched-panel-chk-weekday" value="2" style="display:none;">周二</label>
+                  <label class="weekday-chip" data-day="3"><input type="checkbox" class="sched-panel-chk-weekday" value="3" style="display:none;">周三</label>
+                  <label class="weekday-chip" data-day="4"><input type="checkbox" class="sched-panel-chk-weekday" value="4" style="display:none;">周四</label>
+                  <label class="weekday-chip" data-day="5"><input type="checkbox" class="sched-panel-chk-weekday" value="5" style="display:none;">周五</label>
+                  <label class="weekday-chip" data-day="6"><input type="checkbox" class="sched-panel-chk-weekday" value="6" style="display:none;">周六</label>
+                  <label class="weekday-chip" data-day="7"><input type="checkbox" class="sched-panel-chk-weekday" value="7" style="display:none;">周日</label>
+                </div>
+              </div>
+
+              <!-- 紧急中止与保存按钮 -->
+              <div class="sched-panel-actions">
+                <button type="button" id="btn-panel-cancel-today-sched" class="btn-emergency-cancel">
+                  🚫 取消今日关机
+                </button>
+                <button type="button" id="btn-panel-save-sched" class="btn-save-sched-panel">
+                  💾 保存排程设置
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 外部第三方应用程序远程拉起 (默认折叠收起) -->
+        <div class="collapsible-hub-box collapsed" id="apps-hub-box">
+          <div class="collapsible-hub-header" id="apps-hub-header-trigger" title="点击展开/折叠第三方应用联动控制">
+            <div class="collapsible-title-wrap">
+              <span class="collapsible-icon">🚀</span>
+              <div class="collapsible-meta">
+                <div class="collapsible-main-title-row">
+                  <span class="collapsible-main-title">第三方应用联动</span>
+                  <span class="collapsible-badge-tag" id="apps-summary-badge">0 个程序</span>
+                </div>
+              </div>
+            </div>
+            
+            <div class="collapsible-header-controls">
+              <button id="btn-refresh-apps" class="btn-action-small" title="刷新外部程序状态" type="button" style="margin-right:6px;">🔄 刷新</button>
+              <button class="btn-collapsible-toggle" id="btn-apps-toggle" type="button">
+                <span id="apps-toggle-text">展开面板</span>
+                <span class="collapsible-toggle-icon" id="apps-toggle-icon">▾</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- 折叠内容区 (带滑动条) -->
+          <div class="collapsible-hub-content" id="apps-hub-content">
+            <div class="external-apps-grid" id="external-apps-container" style="max-height: 220px; overflow-y: auto; padding-right: 4px;">
+              <!-- 动态渲染已注册的外部应用卡片 -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. 展馆物联控制 (右侧) -->
+      <section id="sec-iot" class="card iot-card">
+        <div class="card-header">
+          <div class="card-title">
+            <span class="icon-spark">⚡</span> 展馆物联控制
+          </div>
+          <div class="header-actions">
+            <button id="btn-add-macro" class="btn-action-small highlight" title="添加新场景">➕ 新增场景</button>
+            <button id="btn-edit-macros" class="btn-action-small">⚙ 编排流程</button>
+            <button id="btn-add-device" class="btn-action-small highlight">+ 添加设备</button>
+            <button id="btn-add-forwarder" class="btn-action-small highlight" style="background: linear-gradient(135deg, #0284c7, #6366f1); border-color: #38bdf8;" title="配置自定义指令中转与多协议网关">🔀 自定义中转</button>
+          </div>
+        </div>
+
+        <!-- 一键控制场景卡片容器 (支持无限添加与自定义改名) -->
+        <div class="macros-quick-grid" id="macros-cards-container">
+          <!-- 动态渲染一键开馆、一键闭馆及自定义控制卡片 -->
+        </div>
+
+        <!-- 宏执行进度指示条 -->
+        <div id="macro-progress-box" class="macro-progress-box hidden">
+          <div class="progress-info">
+            <span id="macro-status-text" class="macro-status-text">正在执行流程...</span>
+            <span id="macro-step-count" class="macro-step-count">步骤 1/4</span>
+          </div>
+          <div class="progress-track">
+            <div id="macro-progress-bar" class="progress-bar"></div>
+          </div>
+          <div id="macro-log-recent" class="macro-log-recent">等待设备响应...</div>
+        </div>
+
+        <!-- 可编辑受控环境设备列表 -->
+        <div class="device-list-container">
+          <div class="sub-section-title">
+            <span>已配置受控设备</span>
+          </div>
+          <div class="device-cards-grid" id="device-cards-grid">
+            <!-- 动态渲染设备卡片 -->
+          </div>
+        </div>
+
+        <!-- 3. 展馆多媒体与物联设备同步时间轴 (保留节目信息，点击弹出窗口编排) -->
+        <div class="timeline-program-card" id="timeline-program-card" style="margin-top: 24px; padding: 16px 18px; border-top: 1px dashed rgba(255,255,255,0.08); background: linear-gradient(180deg, rgba(15,23,42,0.8) 0%, rgba(2,6,23,0.9) 100%); border-radius: 12px; border: 1px solid rgba(0,240,255,0.22); box-shadow: 0 4px 20px rgba(0,0,0,0.4);">
+          <div class="timeline-header-bar" style="border-bottom: 1px solid rgba(255,255,255,0.06); padding-bottom: 12px; margin-bottom: 14px;">
+            <div class="timeline-title-group">
+              <span class="timeline-main-title">⏱️ 展馆多媒体与物联设备同步时间轴</span>
+              <span class="timeline-badge" id="timeline-status-badge">就绪</span>
+            </div>
+            <div class="timeline-actions-group">
+              <button type="button" id="btn-open-timeline-studio" class="btn-timeline-action highlight" style="background: linear-gradient(135deg, #0284c7, #6366f1); border-color: #38bdf8;" title="打开全功能可视化时间轴编排工作室窗口">⚙️ 编排时间轴节目</button>
+              <button type="button" id="btn-generate-standby-prog" class="btn-timeline-action" style="background: linear-gradient(135deg, #059669, #10b981); border-color: #34d399; color: #fff;" title="将当前时间轴编排生成为节目并放入【待机】文件夹，待机时自动放映并联动物联设备">📥 生成节目放入待机</button>
+              <button type="button" id="btn-timeline-play" class="btn-timeline-action play" title="预览播放时间轴">▶ 预览</button>
+              <button type="button" id="btn-timeline-stop" class="btn-timeline-action stop" title="停止并复位至起点">⏹ 停止</button>
+              <button type="button" id="btn-timeline-sync-screen" class="btn-timeline-action screen" title="同步将主时间轴媒体投送至大屏并联动设备">🖥️ 联动大屏</button>
+            </div>
+          </div>
+
+          <!-- 节目信息卡片网格 -->
+          <div class="timeline-program-info-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; background: rgba(2, 6, 23, 0.7); padding: 14px 16px; border-radius: 10px; border: 1px solid rgba(255, 255, 255, 0.05); margin-bottom: 12px;">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">主时间轴媒体内容:</span>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span class="master-media-badge" id="timeline-master-type">🎬 视频</span>
+                <span style="font-size: 13px; font-weight: 700; color: #00f0ff; cursor: pointer;" id="timeline-master-name" class="text-ellipsis" title="点击更换媒体">未载入主媒体 (点击选择)</span>
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">播放总时长 / 当前进度:</span>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 14px; font-weight: 800; color: #f1f5f9; font-family: monospace;" id="timeline-timecode">
+                  <span class="time-cur" id="timeline-time-cur">00:00.0</span> / <span class="time-total" id="timeline-time-total">01:00.0</span>
+                </span>
+                <span style="font-size: 11px; color: #64748b;">(可在编排中自定义)</span>
+              </div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <span style="font-size: 11px; color: #94a3b8; font-weight: 600;">同步物联时间轴轨道:</span>
+              <span style="font-size: 13px; font-weight: 700; color: #38bdf8;" id="prog-tracks-summary">2 条同步轨道 · 4 个命令节点</span>
+            </div>
+          </div>
+
+          <!-- 联动事件实时日志条 -->
+          <div class="timeline-event-toast-bar" id="timeline-event-bar" style="margin-top: 0;">
+            <span class="toast-indicator">⚡</span>
+            <span id="timeline-last-event">时间轴节目就绪，点击右上角【⚙️ 编排时间轴节目】可弹窗进入多轨道可视化工作室</span>
+          </div>
+        </div>
+
+        <!-- 展馆自定义中转与协议分发中枢 -->
+        <div class="forwarder-list-container" style="margin-top: 24px; padding-top: 16px; border-top: 1px dashed rgba(255,255,255,0.08);">
+          <div class="sub-section-title" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 15px; font-weight: 700; color: #f8fafc;">🔀 展馆物联网自定义中转与协议分发规则</span>
+              <span class="badge-tag" id="fwd-count-badge" style="background: rgba(56,189,248,0.15); border: 1px solid rgba(56,189,248,0.3); color: #38bdf8; font-size: 11px; padding: 2px 8px; border-radius: 12px;">0 条规则</span>
+            </div>
+            <button id="btn-add-forwarder-direct" class="btn-action-small highlight" style="background: linear-gradient(135deg, #0ea5e9, #4f46e5); border: none; font-size: 12px; padding: 4px 12px;">+ 添加中转规则</button>
+          </div>
+          <div class="forwarder-cards-grid" id="forwarder-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px;">
+            <!-- 动态渲染中转转发规则卡片 -->
+          </div>
+        </div>
+      </section>
+
+    </div>
+
+  </main>
+
+  <!-- ==================== 模态框组件系统 ==================== -->
+
+  <!-- 模态框 1：重命名场景名称 -->
+  <div id="modal-rename-macro" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>自定义场景名称</h3>
+        <button class="btn-close-modal" id="btn-close-rename-modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="rename-macro-id" />
+        <div class="form-row">
+          <label>场景显示名称</label>
+          <input type="text" id="rename-macro-name" placeholder="例如：早间全厅预热启动" required />
+        </div>
+        <div class="form-row">
+          <label>场景描述</label>
+          <input type="text" id="rename-macro-desc" placeholder="简短描述执行步骤" />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" id="btn-cancel-rename">取消</button>
+          <button type="button" class="btn-save" id="btn-save-rename">保存修改</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 模态框 1.5：新增一键控制场景 -->
+  <div id="modal-add-macro" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>➕ 新增一键控制场景</h3>
+        <button class="btn-close-modal" id="btn-close-add-macro-modal">✕</button>
+      </div>
+      <form id="form-add-macro" class="modal-body">
+        <div class="form-row">
+          <label>场景名称</label>
+          <input type="text" id="new-macro-name" placeholder="例如：中场接待模式、全厅节能、展项巡检" required />
+        </div>
+        <div class="form-row">
+          <label>场景简要描述</label>
+          <input type="text" id="new-macro-desc" placeholder="简要描述本流程动作，例如：自动切入宣传片并调暗主灯光" />
+        </div>
+        <div class="form-row">
+          <label>卡片色彩主题</label>
+          <select id="new-macro-theme">
+            <option value="cyan">💠 科技青蓝 (Cyan)</option>
+            <option value="emerald">🌿 清新碧绿 (Emerald)</option>
+            <option value="amber">☀️ 暖阳琥珀 (Amber)</option>
+            <option value="purple">🔮 炫彩霓紫 (Purple)</option>
+            <option value="rose">🌹 典雅玫红 (Rose)</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" id="btn-cancel-add-macro">取消</button>
+          <button type="submit" class="btn-save">立即创建并编排步骤</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 模态框 2：编辑 / 添加受控设备 -->
+  <div id="modal-device" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="modal-device-title">配置受控环境设备</h3>
+        <button class="btn-close-modal" id="btn-close-device-modal">✕</button>
+      </div>
+      <form id="form-device" class="modal-body">
+        <input type="hidden" id="edit-device-id" />
+        <div class="form-row">
+          <label>设备名称</label>
+          <input type="text" id="dev-name" placeholder="例如：8路时序电源、主机工作站、激光投影机" required />
+        </div>
+        <div class="form-row grid-2">
+          <div>
+            <label>通讯协议 / 驱动类型</label>
+            <select id="dev-type">
+              <option value="TCP">TCP Client (网络长/短连)</option>
+              <option value="UDP">UDP (单播 / 局域网广播)</option>
+              <option value="WOL">WOL 网络唤醒 (远程开机)</option>
+              <option value="SERIAL">SERIAL 串口 (RS232/RS485)</option>
+              <option value="HTTP">HTTP (WebHook / REST API)</option>
+            </select>
+          </div>
+          <div id="dev-protocol-group">
+            <label>编码格式</label>
+            <select id="dev-protocol">
+              <option value="hex">十六进制 (Hex 字节流)</option>
+              <option value="ascii">ASCII 字符串 (支持 \r\n)</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row grid-2">
+          <div>
+            <label id="lbl-dev-host">目标 IP 地址 / 主机名</label>
+            <input type="text" id="dev-host" placeholder="192.168.1.200" required />
+          </div>
+          <div id="dev-port-group">
+            <label id="lbl-dev-port">通信端口 (Port)</label>
+            <input type="number" id="dev-port" placeholder="4001" min="1" max="65535" required />
+          </div>
+        </div>
+        <div class="form-row">
+          <label>开机 / 通电控制指令</label>
+          <input type="text" id="dev-cmd-on" placeholder="如 Hex: A5 5A 08 01 FF 或 ASCII: PWR ON\r\n" required />
+        </div>
+        <div class="form-row">
+          <label>关机 / 断电控制指令</label>
+          <input type="text" id="dev-cmd-off" placeholder="如 Hex: A5 5A 08 01 00 或 ASCII: PWR OFF\r\n" required />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" id="btn-cancel-device">取消</button>
+          <button type="button" class="btn-danger-outline hidden" id="btn-delete-device">删除设备</button>
+          <button type="submit" class="btn-save">保存设备配置</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 模态框：配置自定义中转转发规则 (Forwarder) -->
+  <div id="modal-forwarder" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width: 600px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 20px;">🔀</span>
+          <h3 id="modal-forwarder-title" style="margin: 0; font-size: 16px;">配置自定义指令中转与转发规则</h3>
+        </div>
+        <button class="btn-close-modal" id="btn-close-forwarder-modal">✕</button>
+      </div>
+      <form id="form-forwarder" class="modal-body">
+        <input type="hidden" id="edit-fwd-id" />
+        
+        <div class="form-row grid-2">
+          <div>
+            <label>规则名称</label>
+            <input type="text" id="fwd-name" placeholder="例如：中控UDP转TCP继电器" required />
+          </div>
+          <div>
+            <label>是否启用此规则</label>
+            <select id="fwd-enabled">
+              <option value="true">✅ 立即启用</option>
+              <option value="false">⏸ 暂时禁用</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label>规则描述 (备忘用途)</label>
+          <input type="text" id="fwd-desc" placeholder="例如：收到快思聪中控UDP 8001指令，转发至灯控网关" />
+        </div>
+
+        <!-- 监听接收匹配源配置 -->
+        <div style="background: rgba(14, 165, 233, 0.08); border: 1px solid rgba(14, 165, 233, 0.25); border-radius: 8px; padding: 12px; margin-bottom: 14px;">
+          <div style="font-size: 13px; font-weight: 700; color: #38bdf8; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+            <span>📥 1. 接收监听与匹配条件</span>
+            <span style="font-size: 11px; color: #94a3b8; font-weight: normal;">(收到指定命令时触发中转)</span>
+          </div>
+          <div class="form-row grid-2">
+            <div>
+              <label>接收协议来源</label>
+              <select id="fwd-match-protocol">
+                <option value="ALL">ALL (全部协议均监听)</option>
+                <option value="UDP">UDP (中控端口 8001)</option>
+                <option value="TCP">TCP (中控端口 8000)</option>
+                <option value="SERIAL">SERIAL 串口 (后台监听串口)</option>
+                <option value="HTTP">HTTP (API 接口 /api/iot/trigger)</option>
+              </select>
+            </div>
+            <div>
+              <label>指令匹配模式</label>
+              <select id="fwd-match-type">
+                <option value="CONTAINS">CONTAINS (命令中包含关键词)</option>
+                <option value="EXACT">EXACT (完全一致匹配)</option>
+                <option value="STARTSWITH">STARTSWITH (前缀匹配)</option>
+                <option value="HEX">HEX (十六进制模糊匹配)</option>
+              </select>
+            </div>
+          </div>
+
+          <div id="fwd-net-listen-group" class="form-row">
+            <label style="display: flex; justify-content: space-between; align-items: center;">
+              <span>自定义接收/监听端口号 (Port)</span>
+              <span style="font-size: 11px; color: #38bdf8;">UDP 默认 8001 / TCP 默认 8000，支持任意自定义端口</span>
+            </label>
+            <input type="number" id="fwd-net-listen-port" placeholder="8001" value="8001" min="1" max="65535" />
+          </div>
+
+          <div id="fwd-serial-listen-group" class="form-row grid-2 hidden">
+            <div>
+              <label>监听串口号 (COM口)</label>
+              <input type="text" id="fwd-listen-serial-port" placeholder="COM1" />
+            </div>
+            <div>
+              <label>监听波特率</label>
+              <input type="number" id="fwd-listen-baud" placeholder="9600" value="9600" />
+            </div>
+          </div>
+
+          <div class="form-row" style="margin-bottom: 0;">
+            <label>匹配的指令特征值 / 关键字</label>
+            <input type="text" id="fwd-match-cmd" placeholder="例如：RELAY_ON、LIGHT:01 或十六进制 01 05" required />
+          </div>
+        </div>
+
+        <!-- 转发目标配置 -->
+        <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 8px; padding: 12px; margin-bottom: 14px;">
+          <div style="font-size: 13px; font-weight: 700; color: #a5b4fc; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+            <span>📤 2. 目标转发分发配置</span>
+            <span style="font-size: 11px; color: #94a3b8; font-weight: normal;">(匹配后自动将命令发送至目标)</span>
+          </div>
+          <div class="form-row grid-2">
+            <div>
+              <label>目标协议</label>
+              <select id="fwd-target-protocol">
+                <option value="TCP">TCP (网络客户端长/短连)</option>
+                <option value="UDP">UDP (单播 / 局域网广播)</option>
+                <option value="HTTP">HTTP (GET / POST 请求)</option>
+                <option value="SERIAL">SERIAL 串口 (向串口写出)</option>
+                <option value="WOL">WOL (网络唤醒魔术包)</option>
+              </select>
+            </div>
+            <div>
+              <label>目标数据格式</label>
+              <select id="fwd-target-format">
+                <option value="TEXT">TEXT 字符串 (支持 \r\n 换行)</option>
+                <option value="HEX">HEX 十六进制 (如 01 05 00 01 FF 00)</option>
+                <option value="RAW">RAW 透传 (直接透传输入命令)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row grid-2">
+            <div>
+              <label id="lbl-fwd-target-host">目标 IP 地址 / 串口COM / 广播IP</label>
+              <input type="text" id="fwd-target-host" placeholder="192.168.1.188 或 COM2" required />
+            </div>
+            <div id="fwd-target-port-group">
+              <label id="lbl-fwd-target-port">目标端口 / 波特率</label>
+              <input type="number" id="fwd-target-port" placeholder="4001" value="4001" required />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <label>转发的目标命令内容 (支持 {{RAW}} 占位符透传原始数据)</label>
+            <input type="text" id="fwd-target-cmd" placeholder="例如 Hex: 01 05 00 01 FF 00 或 ASCII: #PWR 1\r\n 或 http://..." />
+          </div>
+
+          <div class="form-row" style="margin-bottom: 0;">
+            <label>时序延时发送 (毫秒 ms，0表示即时触发)</label>
+            <input type="number" id="fwd-delay-ms" placeholder="0" value="0" min="0" max="60000" />
+          </div>
+        </div>
+
+        <div class="modal-actions" style="display: flex; justify-content: space-between; align-items: center;">
+          <div>
+            <button type="button" class="btn-danger-outline hidden" id="btn-delete-forwarder">删除规则</button>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" class="btn-cancel" id="btn-cancel-forwarder">取消</button>
+            <button type="button" class="btn-action-small" id="btn-test-forwarder" style="background: rgba(245, 158, 11, 0.2); border: 1px solid rgba(245, 158, 11, 0.4); color: #fbbf24; padding: 6px 14px;">⚡ 单步模拟测试</button>
+            <button type="submit" class="btn-save">保存中转规则</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 模态框 3：流水线宏步骤在线编排 -->
+  <div id="modal-macro-steps" class="modal-overlay hidden">
+    <div class="modal-box modal-box-large">
+      <div class="modal-header">
+        <div class="modal-header-tabs" id="macro-tab-container">
+          <button type="button" class="tab-btn active" data-macro="open_pavilion">开馆流程编排</button>
+          <button type="button" class="tab-btn" data-macro="close_pavilion">闭馆流程编排</button>
+        </div>
+        <button class="btn-close-modal" id="btn-close-macro-modal">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="macro-steps-header">
+          <span class="macro-steps-tip">拖动调整步骤次序，支持自定义延时。</span>
+          <button type="button" id="btn-add-step" class="btn-action-small highlight">➕ 追加执行步骤</button>
+        </div>
+        <div id="macro-steps-list" class="macro-steps-list">
+          <!-- 动态渲染步骤项 -->
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" id="btn-cancel-macro">取消</button>
+          <button type="button" class="btn-save" id="btn-save-macro">保存步骤编排</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 模态框 4：添加外部网页流码 (在文件夹生成 .txt 文档) -->
+  <div id="modal-custom-media" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>🌐 添加外部网页流码 (生成 .txt 文档)</h3>
+        <button class="btn-close-modal" id="btn-close-custom-media-modal">✕</button>
+      </div>
+      <form id="form-custom-media" class="modal-body">
+        <div class="form-row">
+          <label>素材类型</label>
+          <select id="custom-media-type">
+            <option value="web">🌐 外部网页 / H5 数字展项</option>
+            <option value="stream">📡 网络直播流 (M3U8 / HTTP-FLV / RTSP)</option>
+          </select>
+        </div>
+        <div class="form-row">
+          <label>素材名称 (自动在 media 文件夹生成 同名.txt)</label>
+          <input type="text" id="custom-media-name" placeholder="例如：展厅数据大屏、央视直播流" required />
+        </div>
+        <div class="form-row">
+          <label id="custom-media-target-label">网页 / 直播流 URL 目标地址</label>
+          <input type="text" id="custom-media-target" placeholder="http:// 或 https:// 或 rtsp://" required />
+        </div>
+        <div class="tip-text" style="font-size:12px; color:#38bdf8; margin-top:-4px;">
+          💾 确认添加后，将在系统 media 素材文件夹中自动生成对应的 .txt 文档，大屏点播时将自动以全屏网页/流容器呈现。
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" id="btn-cancel-custom-media">取消</button>
+          <button type="submit" class="btn-save">立即生成并存入素材库</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 模态框 5：顶层字幕 / 跑马灯配置 (支持多行输入 / 静态居中 / 快捷模板) -->
+  <div id="modal-subtitle" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width:560px;">
+      <div class="modal-header">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:18px;">📢</span>
+          <h3 style="margin:0; font-size:16px;">大屏顶层悬浮字幕 / 欢迎词与通告</h3>
+        </div>
+        <button class="btn-close-modal" id="btn-close-subtitle-modal">✕</button>
+      </div>
+      <form id="form-subtitle-config" class="modal-body">
+        <div class="form-row" style="display:flex; justify-content:space-between; align-items:center;">
+          <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="checkbox" id="sub-enabled" checked />
+            <span style="font-weight:600;">启用大屏悬浮字幕显示</span>
+          </label>
+          <span style="font-size:12px; color:#94a3b8;">支持静态居中迎宾与跑马灯轮播</span>
+        </div>
+
+        <!-- 快捷场景模板选择 -->
+        <div class="form-row">
+          <label style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <span>⚡ 快捷场景模板 (点击一键套用)</span>
+            <span style="font-size:11px; color:#38bdf8;">自动填充文案并优化显示参数</span>
+          </label>
+          <div class="sub-template-bar" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(95px, 1fr)); gap:6px;">
+            <button type="button" class="btn-sub-tpl" data-tpl="welcome" style="padding:6px 4px; font-size:12px; background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.4); color:#fbbf24; border-radius:6px; cursor:pointer;">🎉 领导欢迎词</button>
+            <button type="button" class="btn-sub-tpl" data-tpl="notice" style="padding:6px 4px; font-size:12px; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.4); color:#f87171; border-radius:6px; cursor:pointer;">📢 临时通告</button>
+            <button type="button" class="btn-sub-tpl" data-tpl="event" style="padding:6px 4px; font-size:12px; background:rgba(6,182,212,0.15); border:1px solid rgba(6,182,212,0.4); color:#22d3ee; border-radius:6px; cursor:pointer;">🗺️ 活动预告</button>
+            <button type="button" class="btn-sub-tpl" data-tpl="tips" style="padding:6px 4px; font-size:12px; background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.4); color:#34d399; border-radius:6px; cursor:pointer;">🌿 温馨提示</button>
+            <button type="button" class="btn-sub-tpl" data-tpl="holiday" style="padding:6px 4px; font-size:12px; background:rgba(244,63,94,0.15); border:1px solid rgba(244,63,94,0.4); color:#fb7185; border-radius:6px; cursor:pointer;">🏮 节日祝福</button>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <label style="display:flex; justify-content:space-between; align-items:center;">
+            <span>字幕播报内容 (支持多行回车换行)</span>
+            <span style="font-size:11px; color:#94a3b8;">换行即可分行展示</span>
+          </label>
+          <textarea id="sub-text" rows="4" style="resize:vertical; line-height:1.5; font-size:14px; font-family:inherit;" placeholder="支持多行文本输入，回车直接换行！例如：&#10;热烈欢迎各位领导与专家&#10;莅临指导参观！"></textarea>
+        </div>
+
+        <div class="form-row grid-2">
+          <div>
+            <label>呈现模式</label>
+            <select id="sub-mode">
+              <option value="static">静态居中 (画面正中稳定停留，多行居中排版)</option>
+              <option value="marquee">水平跑马灯 (单行向左连续循环滚动)</option>
+            </select>
+          </div>
+          <div>
+            <label>字幕显示位置 (上 / 中 / 下)</label>
+            <select id="sub-position">
+              <option value="center">画面居中 (中 - 推荐静态欢迎词/通告)</option>
+              <option value="bottom">底部悬浮 (下 - 推荐常规跑马灯)</option>
+              <option value="top">顶部悬浮 (上)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row grid-2">
+          <div id="sub-speed-group" style="display:none;">
+            <label>滚动周期 (秒，数值越小越快)</label>
+            <input type="number" id="sub-speed" min="0" max="120" value="20" />
+          </div>
+          <div id="sub-static-hint" style="display:block;">
+            <label>静态模式特性</label>
+            <div style="font-size:12px; color:#34d399; line-height:36px; background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.25); border-radius:6px; padding:0 10px;">
+              ● 已开启静止居中，多行文字自动居中对齐
+            </div>
+          </div>
+          <div>
+            <label>文字字号 (px 自定义大小，推荐 48~180)</label>
+            <input type="number" id="sub-fontsize" min="16" max="240" value="80" />
+          </div>
+        </div>
+
+        <div class="form-row grid-2">
+          <div>
+            <label>文字颜色</label>
+            <input type="color" id="sub-color" value="#ffffff" style="height:38px; cursor:pointer;" />
+          </div>
+          <div style="display:flex; align-items:center;">
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-top:16px;">
+              <input type="checkbox" id="sub-transparent-bg" checked />
+              <span style="font-size:13px;">背景全透明 (不挡画面，立体发光投影)</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="modal-actions" style="margin-top:10px;">
+          <button type="button" class="btn-cancel" id="btn-cancel-subtitle">取消</button>
+          <button type="submit" class="btn-save" style="background:linear-gradient(135deg, #10b981, #059669);">立即推送到大屏</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 模态框 7：管理员身份验证登录 -->
+  <div id="modal-auth-login" class="modal-overlay hidden">
+    <div class="modal-box modal-box-auth">
+      <div class="modal-header">
+        <div class="brand-area">
+          <div class="brand-logo"><span class="logo-core"></span></div>
+          <div class="system-name">VisualCast</div>
+        </div>
+        <h3>管理员登录认证</h3>
+      </div>
+      <form id="form-auth-login" class="modal-body">
+        <div class="auth-icon-banner">🔐</div>
+        <p class="auth-hint">管理后台涉及展厅硬件控制与系统运维，请输入管理密码继续：</p>
+        <div class="form-row">
+          <input type="password" id="login-password" placeholder="请输入管理员密码 (默认 admin888)" required autofocus />
+        </div>
+        <div id="login-error-msg" class="auth-error-msg hidden">密码错误，请重新输入</div>
+        <div class="modal-actions">
+          <button type="submit" class="btn-save" style="width:100%; justify-content:center;">立即验证登录</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 模态框 8：修改管理员密码 -->
+  <div id="modal-change-pwd" class="modal-overlay hidden">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>🔐 修改管理员登录密码</h3>
+        <button class="btn-close-modal" id="btn-close-change-pwd">✕</button>
+      </div>
+      <form id="form-change-pwd" class="modal-body">
+        <div class="form-row">
+          <label>当前原密码</label>
+          <input type="password" id="pwd-old" placeholder="请输入当前旧密码" required />
+        </div>
+        <div class="form-row">
+          <label>新管理密码 (至少4位)</label>
+          <input type="password" id="pwd-new" placeholder="请输入新密码" required />
+        </div>
+        <div class="form-row">
+          <label>再次确认新密码</label>
+          <input type="password" id="pwd-confirm" placeholder="请再次输入新密码" required />
+        </div>
+        <div id="change-pwd-error" class="auth-error-msg hidden"></div>
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" id="btn-cancel-pwd">取消</button>
+          <button type="submit" class="btn-save">保存新密码</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 模态框 9：商业授权与机器码充值 -->
+  <div id="modal-license" class="modal-overlay hidden">
+    <div class="modal-box modal-box-license" style="max-width: 520px; border: 1px solid rgba(0, 240, 255, 0.25); box-shadow: 0 20px 60px rgba(0,0,0,0.8), 0 0 30px rgba(0,240,255,0.15);">
+      <div class="modal-header" style="border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 14px;">
+        <h3 style="display:flex; align-items:center; gap:8px; color:#38bdf8; font-size:18px;">
+          <span>🛡️</span> VisualCast 商业授权中心
+        </h3>
+        <button class="btn-close-modal" id="btn-close-license-modal">✕</button>
+      </div>
+      <div class="modal-body" style="padding-top: 16px;">
+        <div class="license-info-card" style="background: rgba(15, 23, 42, 0.7); border-radius: 12px; padding: 14px; border: 1px solid rgba(255,255,255,0.06);">
+          <!-- 状态与配额 -->
+          <div class="lic-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <span class="lic-lbl" style="color:#94a3b8; font-size:13px;">当前授权状态</span>
+            <span class="lic-val" id="lic-status-badge" style="font-weight:bold; font-size:13px; color:#34d399;">验证中...</span>
+          </div>
+          
+          <div class="lic-row" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <span class="lic-lbl" style="color:#94a3b8; font-size:13px;">剩余有效时长</span>
+            <span class="lic-val highlight" id="lic-remaining-days" style="color:#38bdf8; font-weight:bold; font-size:14px;">-- 天</span>
+          </div>
+
+          <!-- 8 位动态申请码卡片 (核心醒目区) -->
+          <div class="lic-request-box" style="background: linear-gradient(135deg, rgba(14, 165, 233, 0.12) 0%, rgba(2, 132, 199, 0.05) 100%); padding: 14px 16px; border-radius: 10px; border: 1px solid rgba(56, 189, 248, 0.4); box-shadow: inset 0 0 15px rgba(56, 189, 248, 0.08);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+              <span style="color: #38bdf8; font-size: 13px; font-weight: 600; letter-spacing: 0.5px;">🔑 本机 8 位动态申请码 (单次有效)</span>
+              <span style="font-size: 11px; color: #64748b;">一机一码 · 单次核销</span>
+            </div>
+            
+            <div class="lic-machine-code-wrap" style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-top: 8px;">
+              <span id="lic-request-code" class="machine-code-text" style="color: #38bdf8; font-size: 22px; font-weight: 800; letter-spacing: 3px; font-family: 'Consolas', 'Courier New', monospace; text-shadow: 0 0 10px rgba(56, 189, 248, 0.4);">--------</span>
+              <button type="button" id="btn-copy-request-code" class="btn-copy-code" style="background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%); color: #ffffff; font-weight: 700; font-size: 13px; padding: 8px 18px; border-radius: 8px; border: none; cursor: pointer; box-shadow: 0 4px 14px rgba(14, 165, 233, 0.35); transition: all 0.2s ease;">📋 复制申请码</button>
+            </div>
+            <!-- 兼容隐藏的原机器码复制按钮，防脚本报错并保证任何调用统一复制申请码 -->
+            <button type="button" id="btn-copy-machine-code" style="display:none;"></button>
+          </div>
+
+          <div style="font-size: 11px; color: #94a3b8; margin: 8px 0 4px 4px; line-height: 1.5;">
+            💡 <b>操作指引：</b>点击上方【<b>复制申请码</b>】按钮，粘贴进【<b>国文创加密机</b>】即可签发 12 位激活码。
+          </div>
+
+          <div style="margin-top: 8px; font-size: 11px; color: #475569; display: flex; justify-content: space-between; border-top: 1px dashed rgba(255,255,255,0.06); padding-top: 8px;">
+            <span>底层特征标识: <span id="lic-machine-code" style="font-family: monospace; color: #64748b;">MC-001</span></span>
+            <span>签发服务电话/微信: <span style="color:#38bdf8;">19203642022</span></span>
+          </div>
+        </div>
+
+        <div class="form-row" style="margin-top: 16px;">
+          <label style="color:#cbd5e1; font-size:13px; font-weight:600; display:block; margin-bottom:6px;">输入授权激活码 (12位，格式: XXXX-XXXX-XXXX)</label>
+          <textarea id="lic-code-input" rows="2" placeholder="请在此粘贴【国文创加密机】签发的激活码..." style="width:100%; box-sizing:border-box; background:rgba(0,0,0,0.5); border:1px solid rgba(255,255,255,0.18); border-radius:8px; padding:10px 12px; color:#34d399; font-family:monospace; font-size:16px; letter-spacing:1px; text-transform:uppercase; outline:none; resize:none;"></textarea>
+        </div>
+        <div class="modal-actions" style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px;">
+          <button type="button" class="btn-cancel" id="btn-cancel-license" style="padding:8px 18px; border-radius:8px; border:1px solid rgba(255,255,255,0.15); background:rgba(255,255,255,0.05); color:#cbd5e1; cursor:pointer;">关闭</button>
+          <button type="button" class="btn-save" id="btn-apply-license" style="padding:8px 22px; border-radius:8px; border:none; background:linear-gradient(135deg, #10b981 0%, #059669 100%); color:#fff; font-weight:bold; cursor:pointer; box-shadow:0 4px 14px rgba(16,185,129,0.3);">立即激活 / 续期</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+  <!-- 通用确认模态框 -->
+  <div id="modal-confirm" class="modal-overlay hidden">
+    <div class="modal-box modal-box-confirm">
+      <div class="modal-header">
+        <h3 id="modal-confirm-title">安全确认</h3>
+        <button class="btn-close-modal" id="btn-close-confirm">✕</button>
+      </div>
+      <div class="modal-body">
+        <p id="modal-confirm-msg">您确定要执行此操作吗？</p>
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" id="btn-cancel-confirm">取消</button>
+          <button type="button" class="btn-save" id="btn-ok-confirm">确认执行</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 移动端底部快捷跳转导航 -->
+  <nav class="mobile-bottom-nav">
+    <a href="#sec-monitor" class="mobile-nav-btn active"><span>📺</span><span>大屏监控</span></a>
+    <a href="#sec-media" class="mobile-nav-btn"><span>📁</span><span>素材媒体</span></a>
+    <a href="#sec-host" class="mobile-nav-btn"><span>🖥️</span><span>主机运维</span></a>
+    <a href="#sec-iot" class="mobile-nav-btn"><span>⚡</span><span>设备中控</span></a>
+  </nav>
+
+  <!-- 无线投屏管理模态窗口 -->
+  <div id="modal-cast-hub" class="modal-overlay hidden">
+    <div class="modal-box cast-hub-modal-box" style="max-width:440px; text-align:center; padding:0; overflow:hidden;">
+      <div class="modal-header" style="padding:14px 18px; border-bottom:1px solid rgba(255,255,255,0.08);">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:18px;">📡</span>
+          <h3 style="margin:0; font-size:15px; font-weight:700;">系统级无线投屏中枢</h3>
+        </div>
+        <button class="btn-close-modal" id="btn-close-cast-modal" style="font-size:16px;">✕</button>
+      </div>
+      <div class="modal-body" style="display:flex; flex-direction:column; align-items:center; gap:14px; padding:22px 20px;">
+        <div style="font-size:12px; color:#94a3b8; text-align:left; width:100%; line-height:1.5;">
+          免扫码、免装客户端。设备与大屏连入同一 Wi-Fi，下拉菜单即可一键整机镜像上屏：
+        </div>
+
+        <!-- 核心设备态势与自定义名称卡片 -->
+        <div style="width:100%; background:rgba(0,240,255,0.06); border:1px solid rgba(0,240,255,0.3); border-radius:10px; padding:14px; text-align:left;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+            <span style="font-size:12px; color:#94a3b8;">🎯 局域网广播设备名</span>
+            <span id="admin-cast-indicator-pill" style="font-size:11px; color:#34d399; font-weight:600;">● 投屏服务就绪</span>
+          </div>
+          <div style="display:flex; gap:8px; align-items:center;">
+            <input type="text" id="admin-native-cast-name-input" class="form-input" style="flex:1; font-size:15px; font-weight:700; color:#00f0ff; background:rgba(15,23,42,0.9); border:1px solid rgba(0,240,255,0.4); padding:8px 12px; border-radius:6px; font-family:monospace;" placeholder="请输入投屏广播设备名称" value="VisualCast 展厅大屏" />
+            <button type="button" id="btn-save-cast-device-name" class="btn-save" style="padding:8px 12px; font-size:12px; white-space:nowrap; background:linear-gradient(135deg, #0284c7, #0369a1); display:flex; align-items:center; gap:4px; cursor:pointer;">💾 保存名称</button>
+          </div>
+          <div style="margin-top:8px; font-size:11px; color:#64748b;">
+            修改后自动同步大屏提示与局域网 UPnP/AirPlay 广播，手机搜索立即生效。
+          </div>
+        </div>
+
+        <!-- 当前投屏连接状态 -->
+        <div id="admin-cast-status-box" style="width:100%; padding:10px 14px; border-radius:8px; background:rgba(15,23,42,0.8); border:1px solid rgba(255,255,255,0.1); font-size:12px; color:#cbd5e1; display:flex; justify-content:space-between; align-items:center;">
+          <span>当前投屏态势:</span>
+          <span id="admin-cast-status-text" style="color:#38bdf8; font-weight:600;">大屏已显示原生投屏看板，等待设备直连...</span>
+        </div>
+
+        <!-- 控制操作按键组 -->
+        <div style="display:flex; gap:8px; width:100%; margin-top:4px;">
+          <button type="button" id="btn-trigger-screen-board" class="btn-save" style="flex:1; padding:10px; font-size:13px; display:flex; align-items:center; justify-content:center; gap:6px;">▶ 开启投屏看板</button>
+          <button type="button" class="btn-cancel" id="btn-admin-stop-cast" style="flex:1; background:rgba(239,68,68,0.18); border:1px solid rgba(239,68,68,0.4); color:#fca5a5; padding:10px; font-size:13px; display:flex; align-items:center; justify-content:center; gap:6px;">⏹ 关闭投屏并恢复放映</button>
+        </div>
+
+        <input type="hidden" id="admin-cast-url" value="" />
+      </div>
+    </div>
+  </div>
+
+  <!-- 定时关机模态窗口 (周一至周日自定义排程) -->
+  <div id="modal-scheduled-shutdown" class="modal-overlay hidden">
+    <div class="modal-box sched-shutdown-modal-box" style="max-width:460px; width:92%; max-height:90vh; display:flex; flex-direction:column; padding:0; overflow:hidden;">
+      <div class="modal-header" style="flex-shrink:0; padding:14px 18px; border-bottom:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:space-between;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:18px;">⏰</span>
+          <h3 style="margin:0; font-size:15px; font-weight:700; color:#fff;">定时关机排程设置</h3>
+        </div>
+        <button class="btn-close-modal" id="btn-close-sched-modal" style="font-size:16px;">✕</button>
+      </div>
+      
+      <div class="modal-body" style="flex:1; overflow-y:auto; padding:18px; display:flex; flex-direction:column; gap:16px;">
+        <!-- 今日排程诊断状态横幅 -->
+        <div id="sched-shutdown-status-banner" style="padding:10px 14px; border-radius:8px; font-size:12px; line-height:1.5; display:flex; align-items:center; gap:8px; background:rgba(56,189,248,0.1); border:1px solid rgba(56,189,248,0.25); color:#38bdf8;">
+          <span style="font-size:16px;">ℹ️</span>
+          <span id="sched-shutdown-status-desc">正在获取今日开关机排程状态 (关机时黑屏休眠，结束播放)...</span>
+        </div>
+
+        <!-- 1. 功能总开关：启动定时排程 -->
+        <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,0.04); padding:12px 14px; border-radius:8px; border:1px solid rgba(255,255,255,0.08);">
+          <div style="display:flex; flex-direction:column; gap:2px;">
+            <span style="font-size:14px; font-weight:700; color:#f1f5f9;">启动定时</span>
+            <span style="font-size:11px; color:#94a3b8;">在设定的关机时间休眠/关机，在开启时间自动唤醒放映</span>
+          </div>
+          <label class="switch-toggle" style="position:relative; display:inline-block; width:46px; height:24px;">
+            <input type="checkbox" id="chk-sched-enable" style="opacity:0; width:0; height:0;">
+            <span class="slider round" style="position:absolute; cursor:pointer; top:0; left:0; right:0; bottom:0; background-color:#334155; transition:.3s; border-radius:24px;"></span>
+          </label>
+        </div>
+
+        <div id="sched-boot-time-group" style="display:flex; align-items:center; justify-content:space-between; background:rgba(16,185,129,0.03); padding:10px 14px; border-radius:8px; border:1px solid rgba(16,185,129,0.18);">
+          <span style="font-size:13px; font-weight:600; color:#34d399;">☀️ 每日定时开启时间 (安卓):</span>
+          <input type="time" id="input-sched-boot-time" value="08:30" style="padding:6px 12px; border-radius:6px; background:#0f172a; border:1px solid #059669; color:#34d399; font-size:16px; font-weight:700; outline:none; font-family:monospace;">
+        </div>
+
+        <!-- 3. 每日关机时间 -->
+        <div style="display:flex; align-items:center; justify-content:space-between; background:rgba(255,255,255,0.02); padding:12px 14px; border-radius:8px; border:1px solid rgba(255,255,255,0.06);">
+          <span style="font-size:13px; font-weight:600; color:#e2e8f0;">🌙 每日定时关机时间:</span>
+          <input type="time" id="input-sched-time" value="21:30" style="padding:6px 12px; border-radius:6px; background:#0f172a; border:1px solid #334155; color:#00f0ff; font-size:16px; font-weight:700; outline:none; font-family:monospace;">
+        </div>
+
+        <!-- 3. 自定义关机日期 (周一到周日) -->
+        <div style="display:flex; flex-direction:column; gap:10px; background:rgba(255,255,255,0.02); padding:12px 14px; border-radius:8px; border:1px solid rgba(255,255,255,0.06);">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:13px; font-weight:600; color:#e2e8f0;">📅 关机日期 (自定义勾选):</span>
+            <div style="display:flex; gap:8px; font-size:11px;">
+              <span id="btn-quick-select-all" style="color:#38bdf8; cursor:pointer; text-decoration:underline;">全选</span>
+              <span id="btn-quick-select-workdays" style="color:#38bdf8; cursor:pointer; text-decoration:underline;">仅工作日</span>
+              <span id="btn-quick-select-weekends" style="color:#38bdf8; cursor:pointer; text-decoration:underline;">仅周末</span>
+            </div>
+          </div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;">
+            <label class="weekday-chip" data-day="1"><input type="checkbox" class="sched-chk-weekday" value="1" style="display:none;">周一</label>
+            <label class="weekday-chip" data-day="2"><input type="checkbox" class="sched-chk-weekday" value="2" style="display:none;">周二</label>
+            <label class="weekday-chip" data-day="3"><input type="checkbox" class="sched-chk-weekday" value="3" style="display:none;">周三</label>
+            <label class="weekday-chip" data-day="4"><input type="checkbox" class="sched-chk-weekday" value="4" style="display:none;">周四</label>
+            <label class="weekday-chip" data-day="5"><input type="checkbox" class="sched-chk-weekday" value="5" style="display:none;">周五</label>
+            <label class="weekday-chip" data-day="6"><input type="checkbox" class="sched-chk-weekday" value="6" style="display:none;">周六</label>
+            <label class="weekday-chip" data-day="7"><input type="checkbox" class="sched-chk-weekday" value="7" style="display:none;">周日</label>
+          </div>
+        </div>
+
+        <!-- 4. 今日关机紧急干预区域 (防止误关机/无法开机) -->
+        <div id="sched-emergency-panel" style="display:flex; align-items:center; justify-content:space-between; background:rgba(239,68,68,0.08); padding:10px 14px; border-radius:8px; border:1px solid rgba(239,68,68,0.25);">
+          <div>
+            <div style="font-size:12px; font-weight:700; color:#f87171;">🛡️ 紧急中止保护</div>
+            <div style="font-size:11px; color:#94a3b8; margin-top:2px;">若设备需通宵运行或防止开机误关机，可一键取消今日排程并中止关机</div>
+          </div>
+          <button type="button" id="btn-toggle-cancel-today-sched" style="padding:7px 14px; border-radius:6px; font-size:12px; font-weight:700; border:none; cursor:pointer; background:#dc2626; color:#fff; transition:.2s; white-space:nowrap;">
+            🚫 取消今日关机
+          </button>
+        </div>
+
+        <!-- 5. 底部按键 -->
+        <div style="display:flex; gap:10px; margin-top:4px;">
+          <button type="button" id="btn-cancel-sched-modal" class="btn-cancel" style="flex:1; padding:9px;">关闭窗口</button>
+          <button type="button" id="btn-save-sched-config" class="btn-save" style="flex:2; padding:9px; font-weight:700; background:linear-gradient(135deg, #0284c7, #0369a1);">💾 保存并生效</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 局域网通信网卡配置模态窗口 -->
+  <div id="modal-network-config" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width:480px; width:92%; padding:0; overflow:hidden;">
+      <div class="modal-header" style="padding:14px 18px; border-bottom:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:space-between;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:18px;">🌐</span>
+          <h3 style="margin:0; font-size:15px; font-weight:700; color:#fff;">局域网通信网卡与IP配置</h3>
+        </div>
+        <button class="btn-close-modal" id="btn-close-net-modal" style="font-size:16px;">✕</button>
+      </div>
+      <div class="modal-body" style="padding:18px; display:flex; flex-direction:column; gap:16px;">
+        <div style="font-size:12px; color:#94a3b8; line-height:1.5;">
+          当主机存在多个网卡（如有线网卡、无线 WiFi、虚拟网卡）时，系统自动优选真实物理网卡。您也可在此手动指定受控端与讲解员手牌通信所使用的局域网网卡。
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          <label style="font-size:13px; font-weight:600; color:#e2e8f0;">当前受控端通信网卡:</label>
+          <select id="select-admin-netcard" style="width:100%; padding:10px 12px; border-radius:8px; background:#0f172a; border:1px solid rgba(0,240,255,0.4); color:#00f0ff; font-size:14px; font-weight:700; outline:none; font-family:monospace; cursor:pointer;">
+            <option value="">探测网卡列表中...</option>
+          </select>
+        </div>
+
+        <div id="admin-netcard-tip" style="font-size:11px; color:#38bdf8; background:rgba(56,189,248,0.08); border:1px solid rgba(56,189,248,0.2); border-radius:6px; padding:8px 10px;">
+          ● 已排除虚拟网桥干扰，切换后手牌二维码与无线投屏将立即绑定该网段。
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:6px;">
+          <button type="button" id="btn-cancel-net-modal" class="btn-cancel" style="flex:1; padding:9px;">取消</button>
+          <button type="button" id="btn-save-net-config" class="btn-save" style="flex:2; padding:9px; font-weight:700; background:linear-gradient(135deg, #0284c7, #0369a1);">💾 设定并应用网卡</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 模态框：多轨道时间轴编排工作室 (全功能独立弹窗) -->
+  <div id="modal-timeline-studio" class="modal-overlay hidden">
+    <div class="modal-box timeline-studio-modal-box">
+      <div class="modal-header timeline-studio-header">
+        <div class="studio-title-group">
+          <span style="font-size: 20px;">⏱️</span>
+          <div>
+            <h3 style="margin: 0; font-size: 16px; font-weight: 800; color: #fff;">展馆多媒体与物联设备同步时间轴工作室</h3>
+            <span style="font-size: 11px; color: #94a3b8;">主时间轴支持图片/音乐/视频自定义时长，下方多条时间轴毫秒级同步联动受控设备</span>
+          </div>
+        </div>
+        <div class="studio-header-actions">
+          <button type="button" id="btn-modal-generate-standby" class="btn-action-small highlight" style="background: linear-gradient(135deg, #059669, #10b981); border-color: #34d399; color: #fff; padding: 7px 18px; font-weight: 800; font-size: 13px; box-shadow: 0 0 14px rgba(16,185,129,0.4);" title="将当前时间轴生成为节目并存入待机文件夹，待机自动放映并联动物联设备">📥 一键生成节目放入待机</button>
+          <button type="button" id="btn-timeline-save" class="btn-action-small highlight" style="background: linear-gradient(135deg, #0284c7, #0369a1); border-color: #38bdf8; padding: 7px 14px; font-weight: 700;">💾 保存排程</button>
+          <button type="button" id="btn-exit-tl-studio" class="btn-action-small" style="background: rgba(239,68,68,0.25); border: 1px solid #ef4444; color: #fca5a5; font-weight: 800; padding: 7px 18px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 6px; box-shadow: 0 0 10px rgba(239,68,68,0.25);" title="关闭并安全退出时间轴工作室"><span style="font-size:14px; font-weight:900;">✕</span> 退出工作室</button>
+        </div>
+      </div>
+
+      <div class="modal-body timeline-studio-body">
+        <!-- 走带控制与主媒体配置条 -->
+        <div class="timeline-dashboard">
+          <div class="timecode-display" id="timeline-timecode-studio">
+            <span class="time-cur" id="studio-time-cur">00:00.0</span>
+            <span class="time-sep">/</span>
+            <span class="time-total" id="studio-time-total">01:00.0</span>
+          </div>
+          
+          <div class="timeline-transport-controls">
+            <button type="button" id="btn-studio-play" class="btn-action-small play" style="background: #10b981; color: #fff; border: none; font-weight: 700; padding: 6px 12px;">▶ 播放</button>
+            <button type="button" id="btn-studio-stop" class="btn-action-small stop" style="background: rgba(239,68,68,0.2); color: #f87171; border: 1px solid rgba(239,68,68,0.4); padding: 6px 12px;">⏹ 停止</button>
+            <button type="button" id="btn-studio-sync-screen" class="btn-action-small screen" style="background: rgba(56,189,248,0.15); color: #38bdf8; border: 1px solid rgba(56,189,248,0.3); padding: 6px 12px;">🖥️ 联动大屏</button>
+          </div>
+
+          <div class="timeline-master-info" style="display:flex; align-items:center; gap:8px;">
+            <button type="button" id="btn-timeline-pick-media" class="btn-action-small highlight" style="background: linear-gradient(135deg, #0284c7, #6366f1); border-color: #38bdf8; color: #fff; padding: 6px 14px; font-weight: 700;" title="从素材库向主时间轴增添多个媒体素材">➕ 增添主轴素材</button>
+            <div class="master-media-badge" id="studio-master-type">🎬 视频</div>
+            <div class="master-media-name text-ellipsis" id="studio-master-name" style="cursor:pointer; max-width: 200px;" title="点击增添素材">主时间轴多素材片段</div>
+            <div class="master-duration-box" style="display:flex; align-items:center; gap:6px;">
+              <label style="font-size: 11px; color:#94a3b8; white-space:nowrap;">总时长(秒):</label>
+              <input type="number" id="timeline-master-duration" min="1" max="7200" step="1" value="60" style="width: 70px;">
+              <span id="badge-auto-duration" style="font-size: 10px; color:#10b981; background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.3); padding:2px 6px; border-radius:10px; white-space:nowrap;">⏱️ 时长自适应</span>
+            </div>
+          </div>
+
+          <div style="margin-left: auto; display:flex; align-items:center; gap:8px;">
+            <button type="button" id="btn-timeline-add-track" class="btn-action-small highlight" style="background: rgba(0,240,255,0.15); border-color: #00f0ff; color: #00f0ff; font-weight: 700; padding: 6px 14px;" title="增加一条新的同步时间轴轨道">➕ 增加时间轴</button>
+            <button type="button" id="btn-timeline-add-cmd" class="btn-action-small highlight" style="background: linear-gradient(135deg, #059669, #0d9488); border-color: #10b981; color: #fff; font-weight: 700; padding: 6px 14px;" title="在当前时间轴增添受控设备中控指令节点">➕ 增添中控命令</button>
+          </div>
+        </div>
+
+        <!-- 时间轴主体工作区 (标尺、主轴、下方多条同步副轴) -->
+        <div class="timeline-workspace" id="timeline-workspace">
+          <!-- 刻度尺区域 -->
+          <div class="timeline-ruler-row">
+            <div class="timeline-track-header-col ruler-header">
+              <span>时间刻度</span>
+            </div>
+            <div class="timeline-ruler-lane" id="timeline-ruler-lane">
+              <div class="ruler-ticks" id="ruler-ticks"></div>
+              <!-- 垂直贯穿指针线 (Playhead) -->
+              <div class="timeline-playhead" id="timeline-playhead">
+                <div class="playhead-tag" id="playhead-tag">00:00.0</div>
+                <div class="playhead-line"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 主媒体时间轴轨道 (支持增加多个素材 · 自定义时长 · 鼠标拖拽) -->
+          <div class="timeline-track-row master-track-row" id="timeline-master-track-row">
+            <div class="timeline-track-header-col">
+              <div class="track-header-title">
+                <span class="track-icon">📺</span>
+                <span style="color:#00f0ff; font-weight:800;">主时间轴</span>
+              </div>
+              <div class="track-header-sub" id="master-track-sub">多素材 · 自定义时长 · 可拖拽</div>
+              <div class="track-header-actions" style="margin-top: 6px;">
+                <button type="button" id="btn-master-add-clip" class="btn-track-tool add-cmd" style="background: rgba(0,240,255,0.18); border: 1px solid rgba(0,240,255,0.5); color: #00f0ff; padding: 3px 10px; border-radius: 4px; font-weight: 700;" title="向主时间轴增添新素材">➕ 增添素材</button>
+              </div>
+            </div>
+            <div class="timeline-track-lane master-lane" id="timeline-master-lane" title="双击空白处可增添素材，可拖动素材块调整顺序与时长">
+              <div class="master-fill-bar" id="master-fill-bar"></div>
+              <!-- 主时间轴多素材片段渲染容器 -->
+              <div class="master-clips-container" id="master-clips-container" style="position: absolute; inset: 0; pointer-events: auto;"></div>
+            </div>
+          </div>
+
+          <!-- 下方多条同步设备时间轴容器 -->
+          <div class="timeline-sync-tracks-container" id="timeline-sync-tracks-container">
+            <!-- 动态渲染多条同步时间轴轨道 -->
+          </div>
+        </div>
+
+        <!-- 联动事件实时日志条 -->
+        <div class="timeline-event-toast-bar" id="timeline-event-bar" style="margin-top: 10px;">
+          <span class="toast-indicator">⚡</span>
+          <span id="timeline-last-event">时间轴工作室就绪，双击同步轨道任意位置可快速添加设备命令节点</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 模态框：添加 / 编辑同步时间轴受控设备命令节点 -->
+  <div id="modal-timeline-node" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width: 520px; width: 92%;">
+      <div class="modal-header">
+        <h3 id="modal-tl-node-title">配置时间轴命令节点</h3>
+        <button class="btn-close-modal" id="btn-close-tl-node-modal">✕</button>
+      </div>
+      <form id="form-tl-node" class="modal-form">
+        <input type="hidden" id="tl-node-track-id">
+        <input type="hidden" id="tl-node-id">
+
+        <div class="form-group">
+          <label>触发时间点 (秒，支持小数或输入精确秒数):</label>
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <input type="number" id="tl-node-time" min="0" step="0.1" value="0.0" required style="flex: 2;">
+            <span style="color: #94a3b8; font-size: 13px;">秒</span>
+            <span id="tl-node-time-preview" style="color: #00f0ff; font-weight: 700; font-family: monospace; font-size: 14px;">00:00.0</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>选择上方已配置的受控设备:</label>
+          <select id="tl-node-device" required>
+            <option value="">加载设备列表中...</option>
+          </select>
+          <div style="font-size: 11px; color: #64748b; margin-top: 4px;">
+            自动同步上方【已配置受控设备】中的全部设备（支持 TCP / UDP / HTTP / 串口 / WOL）
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>执行命令动作:</label>
+          <select id="tl-node-action">
+            <option value="on">⚡ 开启 / 开机 (ON)</option>
+            <option value="off">⚪ 关闭 / 关断 (OFF)</option>
+            <option value="custom">🛠️ 自定义指令</option>
+          </select>
+        </div>
+
+        <div class="form-group" id="group-tl-node-custom" style="display: none;">
+          <label>自定义控制指令 (HEX / ASCII / HTTP URL):</label>
+          <input type="text" id="tl-node-custom-cmd" placeholder="例如: A5 5A 08 01 或 http://...">
+        </div>
+
+        <div class="form-group">
+          <label>节点事件名称 / 备注说明:</label>
+          <input type="text" id="tl-node-label" placeholder="例如: 开启展厅顶光、升起投影幕">
+        </div>
+
+        <div class="form-actions" style="display: flex; gap: 10px; margin-top: 18px;">
+          <button type="button" id="btn-test-tl-node" class="btn-action-small highlight" style="background: rgba(16,185,129,0.18); border-color: rgba(16,185,129,0.4); color: #10b981;">⚡ 单独测试</button>
+          <button type="button" id="btn-del-tl-node" class="btn-cancel" style="color: #ef4444; border-color: rgba(239,68,68,0.3); display: none;">删除节点</button>
+          <button type="button" id="btn-cancel-tl-node" class="btn-cancel" style="margin-left: auto;">取消</button>
+          <button type="submit" class="btn-save">💾 保存节点</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 模态框：从素材库选取主时间轴多媒体 (图片、音乐、视频) -->
+  <div id="modal-timeline-media" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width: 860px; width: 94%; padding: 0; overflow: hidden; border: 1px solid rgba(0, 240, 255, 0.35); box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8);">
+      <div class="modal-header" style="padding: 14px 20px; background: rgba(15, 23, 42, 0.95); border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size: 18px;">📂</span>
+          <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: #fff;">从素材库增添主时间轴媒体 (支持视频 / 图片 / 音乐)</h3>
+        </div>
+        <button class="btn-close-modal" id="btn-close-tl-media-modal">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 18px;">
+        <div style="display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap;">
+          <button type="button" class="btn-filter-media active" data-type="all" style="padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;">全部</button>
+          <button type="button" class="btn-filter-media" data-type="video" style="padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;">🎬 视频</button>
+          <button type="button" class="btn-filter-media" data-type="audio" style="padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;">🎵 音乐</button>
+          <button type="button" class="btn-filter-media" data-type="image" style="padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer;">🖼️ 图片</button>
+          <span style="margin-left: auto; font-size: 12px; color: #34d399; display: flex; align-items: center; gap: 4px;">⏱️ 点击素材将自动自适应时间轴时长</span>
+        </div>
+        <div id="tl-media-picker-grid" class="tl-media-picker-grid" style="max-height: 440px; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; padding: 4px;">
+          <!-- 动态渲染可选素材 -->
+        </div>
+        <div style="margin-top: 14px; padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.08); display: flex; flex-direction: column; gap: 8px;">
+          <div style="font-size: 12px; color: #94a3b8;">或直接输入媒体相对路径或网络 URL：</div>
+          <div style="display: flex; gap: 8px;">
+            <input type="text" id="tl-custom-media-url" placeholder="/media/video/xxx.mp4 或网络链接" style="flex: 1; padding: 6px 10px; border-radius: 6px; background: #0f172a; border: 1px solid rgba(255,255,255,0.15); color: #fff; font-size: 13px;">
+            <select id="tl-custom-media-type" style="width: 100px; padding: 6px; border-radius: 6px; background: #0f172a; border: 1px solid rgba(255,255,255,0.15); color: #fff; font-size: 13px;">
+              <option value="video">视频</option>
+              <option value="audio">音乐</option>
+              <option value="image">图片</option>
+            </select>
+            <button type="button" id="btn-apply-custom-media" class="btn-action-small highlight">应用</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 模态框：自定义素材片段时长与起始时间 -->
+  <div id="modal-timeline-clip-edit" class="modal-overlay hidden">
+    <div class="modal-box" style="max-width: 440px; width: 90%; padding: 0; overflow: hidden; border: 1px solid rgba(0, 240, 255, 0.4); box-shadow: 0 10px 40px rgba(0,0,0,0.85);">
+      <div class="modal-header" style="padding: 14px 18px; background: rgba(15, 23, 42, 0.95); border-bottom: 1px solid rgba(255,255,255,0.08); display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 18px;">⏱️</span>
+          <h3 style="margin: 0; font-size: 15px; font-weight: 700; color: #fff;">自定义素材时长与时间点</h3>
+        </div>
+        <button class="btn-close-modal" id="btn-close-clip-edit" style="background: none; border: none; color: #94a3b8; font-size: 16px; cursor: pointer;">✕</button>
+      </div>
+      <div class="modal-body" style="padding: 18px; display: flex; flex-direction: column; gap: 14px;">
+        <input type="hidden" id="clip-edit-track-id">
+        <input type="hidden" id="clip-edit-clip-id">
+        <div class="form-row">
+          <label style="font-size: 12px; color: #94a3b8;">素材名称:</label>
+          <div id="clip-edit-name" style="font-size: 13px; font-weight: 700; color: #00f0ff; word-break: break-all;">-</div>
+        </div>
+        <div class="form-row grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+          <div class="form-row">
+            <label style="font-size: 12px; color: #94a3b8;">起始时间 (秒):</label>
+            <input type="number" id="clip-edit-start-time" min="0" max="7200" step="0.5" value="0" style="padding: 8px 10px; border-radius: 6px; background: #0f172a; border: 1px solid rgba(255,255,255,0.15); color: #fff; font-size: 13px;">
+          </div>
+          <div class="form-row">
+            <label style="font-size: 12px; color: #94a3b8;">播放时长 (秒):</label>
+            <input type="number" id="clip-edit-duration" min="1" max="7200" step="0.5" value="15" style="padding: 8px 10px; border-radius: 6px; background: #0f172a; border: 1px solid rgba(255,255,255,0.15); color: #fff; font-size: 13px;">
+          </div>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+          <button type="button" id="btn-delete-clip" class="btn-action-small" style="background: rgba(239,68,68,0.2); border: 1px solid rgba(239,68,68,0.5); color: #f87171; padding: 6px 14px; cursor: pointer;">🗑️ 删除素材</button>
+          <div style="display: flex; gap: 8px;">
+            <button type="button" id="btn-cancel-clip-edit" class="btn-action-small" style="background: #334155; border: none; color: #fff; padding: 6px 14px; cursor: pointer;">取消</button>
+            <button type="button" id="btn-save-clip-edit" class="btn-action-small highlight" style="background: #0284c7; border: none; color: #fff; font-weight: 700; padding: 6px 18px; cursor: pointer;">保存</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/qrcode.min.js"></script>
+  <script src="/static/admin.js"></script>
+</body>
+</html>

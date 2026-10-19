@@ -1,0 +1,21 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#0B0F17"
+        android:pathData="M0,0h108v108h-108z"/>
+    <!-- 盾牌外轮廓 -->
+    <path
+        android:fillColor="#0284C7"
+        android:pathData="M54,16 L86,28 C86,64 54,88 54,88 C54,88 22,64 22,28 L54,16 Z"/>
+    <!-- 内部科技钥匙/钥匙孔 -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,34 A8,8 0 1,0 54,50 A8,8 0 1,0 54,34 M51,48 L51,68 L57,68 L57,48 Z"/>
+    <!-- 发光细节 -->
+    <path
+        android:fillColor="#38BDF8"
+        android:pathData="M57,56 L63,56 L63,60 L57,60 Z M57,62 L63,62 L63,66 L57,66 Z"/>
+</vector>

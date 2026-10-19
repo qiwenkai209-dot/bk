@@ -1,0 +1,41 @@
+# VisualCast / bk .gitignore
+
+# Python build & bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.spec
+build/
+dist/
+
+# Android build cache & gradle
+.gradle/
+android/.gradle/
+android/.build_cache/
+android/app/build/
+android/local.properties
+android_keygen/.gradle/
+android_keygen/app/build/
+android_keygen/local.properties
+*.iml
+.idea/
+
+# Browser & runtime cache
+config/player_browser_cache/
+config/webview2_cache/
+logs/
+cache/
+scratch/
+*.log
+*.tmp
+
+# Media content library (large video/audio/office test files, exceed GitHub 100MB limit)
+media/*
+!media/.gitkeep
+!media/**/.gitkeep
+
+# IDE & OS
+.vscode/
+Thumbs.db
+Desktop.ini
+.DS_Store

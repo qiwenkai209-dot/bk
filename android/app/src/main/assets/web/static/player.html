@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>VisualCast 智能大屏呈现终端</title>
+  <style>
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      width: 100vw; height: 100vh; margin: 0; padding: 0;
+      overflow: hidden !important; background: #000000;
+      user-select: none; -webkit-user-select: none;
+    }
+    html::-webkit-scrollbar, body::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
+    .control-panel.hidden { display: none !important; }
+    .screen-doc-touch-bar.hidden { display: none !important; }
+    .usb-toast.hidden { display: none !important; }
+  </style>
+  <link rel="stylesheet" href="/static/player.css">
+</head>
+<body>
+  <!-- 核心媒体渲染全屏视窗 -->
+  
+  <!-- 触摸交互左右翻页大按键 (后台开启触摸交互时浮现) -->
+  <div id="touch-nav-prev" class="touch-nav-btn touch-nav-left hidden" title="上一素材">◀</div>
+  <div id="touch-nav-next" class="touch-nav-btn touch-nav-right hidden" title="下一素材">▶</div>
+
+  <!-- 大屏端未授权醒目徽章 (未授权时显示，双击呼出大屏授权激活管理) -->
+  <div id="screen-license-badge" class="screen-license-badge hidden" title="双击或连续轻触打开商业授权管理">
+    <span class="badge-dot pulse-yellow"></span>
+    <span id="screen-license-badge-text">⚠️ 商业系统未授权 (双击激活)</span>
+  </div>
+
+  <div id="media-viewport" class="viewport">
+    <!-- 1. 广播级无缝双缓冲视频渲染流水线 (Double Buffering: 支持 4K 硬解零黑闪秒切) -->
+    <video id="video-a" class="media-element video-layer active" playsinline preload="auto" crossorigin="anonymous"></video>
+    <video id="video-b" class="media-element video-layer" playsinline preload="auto" crossorigin="anonymous"></video>
+    
+    <!-- 2. 图片渲染层 -->
+    <img id="main-image" class="media-element" alt="大屏图像" />
+    
+    <!-- 3. PDF / 网页 / H5 展项全屏嵌入层 -->
+    <iframe id="main-frame" class="media-element frame-view" frameborder="0" allowfullscreen></iframe>
+
+    <!-- 4. 独立音频播放器与专业电脑版拟真黑胶动效层 -->
+    <audio id="main-audio" preload="auto"></audio>
+    <div id="audio-visualizer" class="media-element audio-mode">
+      <div class="audio-scene-glow"></div>
+      <div class="vinyl-player-box">
+        <div class="vinyl-tonearm">
+          <div class="tonearm-base"></div>
+          <div class="tonearm-stick"></div>
+          <div class="tonearm-head"></div>
+        </div>
+        <div class="vinyl-disc">
+          <div class="vinyl-groove groove-1"></div>
+          <div class="vinyl-groove groove-2"></div>
+          <div class="vinyl-groove groove-3"></div>
+          <div class="vinyl-center">
+            <div class="vinyl-label">
+              <span class="vinyl-note">🎵</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="audio-info-card">
+        <div class="audio-tag">♪ 正在高保真立体声播放</div>
+        <div id="audio-title" class="audio-title">音频播放中</div>
+      </div>
+      <div class="audio-wave">
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+    </div>
+    
+    <!-- 5. 外挂字幕悬浮层 (SRT / VTT) -->
+    <div id="subtitle-layer" class="subtitle-layer"></div>
+
+    <!-- 6. 黑场遮罩 (Blackout) -->
+    <div id="blackout-mask" class="blackout-mask"></div>
+    
+    <!-- 7. 静帧遮罩 (Freeze) -->
+    <canvas id="freeze-canvas" class="freeze-canvas"></canvas>
+
+    <!-- 8. 待机唤醒层 (按最新需求：不需要任何过渡动画，直接瞬间开播) -->
+    <div id="power-transition-layer" class="power-transition-layer hidden" style="display:none !important;">
+      <div class="wake-glow-halo"></div>
+      <div class="wake-scan-beam"></div>
+      <div class="wake-core-box">
+        <div class="wake-logo-badge">
+          <span class="wake-logo-icon">✨</span>
+        </div>
+        <div class="wake-title">VisualCast</div>
+        <div class="wake-subtitle">商显播控引擎 · 正在唤醒</div>
+        <div class="wake-progress-track">
+          <div class="wake-progress-fill"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- U 盘插入自动同步提示气泡 (自动弹出与淡出) -->
+  <div id="usb-toast" class="usb-toast hidden">
+    <div class="usb-icon">💾</div>
+    <div class="usb-text">
+      <div class="usb-title">检测到 U 盘接入</div>
+      <div id="usb-desc" class="usb-desc">已自动同步覆盖素材文件</div>
+    </div>
+  </div>
+
+  <!-- 离线抽帧 Canvas 用于大屏实时镜像回显 (960x540 演播级高清无延时回显) -->
+  <canvas id="echo-canvas" width="960" height="540" style="display:none;"></canvas>
+
+  <!-- 触控大屏专用隐形热区 (右上角快速连续点击 5 次唤出抽屉，支持鼠标与触控点击) -->
+  <div id="touch-corner-trigger" class="touch-corner-trigger" style="position:fixed;top:0;right:0;width:220px;height:220px;z-index:9999;cursor:pointer;background:transparent;touch-action:manipulation;" title="触控大屏：右上角快速连续点击 5 次唤出受控面板"></div>
+  <div id="touch-corner-indicator" class="touch-corner-indicator" style="display:none;position:fixed;top:18px;right:18px;z-index:999999;background:rgba(15,23,42,0.92);backdrop-filter:blur(12px);border:1px solid #00f0ff;border-radius:20px;padding:6px 14px;color:#00f0ff;font-size:13px;font-weight:700;box-shadow:0 0 18px rgba(0,240,255,0.4);pointer-events:none;transition:opacity 0.2s ease;"></div>
+
+  <div id="control-panel" class="control-panel hidden">
+    <div class="panel-header">
+      <div class="panel-title">
+        <span class="pulse-dot"></span>
+        受控端快捷面板 (按 H 键或边角5击展开)
+      </div>
+      <button id="btn-close-panel" class="btn-panel-back" title="退出快捷面板返回大屏播映 (快捷键: Esc)">✕ 返回大屏</button>
+    </div>
+
+    <!-- 1. 网页控制端连接信息与通信网卡选择 (折叠面板) -->
+    <div class="player-collapsible-box" id="player-hub-box-net">
+      <div class="player-collapsible-header" id="player-hub-header-net">
+        <div class="player-collapsible-title-wrap">
+          <span class="player-collapsible-icon">🌐</span>
+          <span class="player-collapsible-main-title">通信网卡与远程后台</span>
+          <span class="player-collapsible-badge online" id="player-net-badge">8088 就绪</span>
+        </div>
+        <div class="player-collapsible-controls">
+          <button class="btn-player-collapsible-toggle" id="btn-player-net-toggle" type="button">
+            <span id="player-net-toggle-text">收起</span>
+            <span class="player-collapsible-toggle-icon">▾</span>
+          </button>
+        </div>
+      </div>
+      <div class="player-collapsible-content" id="player-net-content">
+        <div class="network-select-container" style="margin-bottom: 12px;">
+          <label for="select-network-card" class="ip-label" style="display:flex;align-items:center;gap:6px;margin-bottom:6px;color:#94a3b8;font-size:12px;font-weight:600;">
+            <span>🔌 受控端通信网卡选择:</span>
+          </label>
+          <select id="select-network-card" class="network-select" style="width:100%;padding:8px 12px;background:#0f172a;color:#00f0ff;border:1px solid rgba(0,240,255,0.35);border-radius:8px;font-size:13px;font-weight:600;outline:none;cursor:pointer;">
+            <option value="">正在检测可用网卡...</option>
+          </select>
+        </div>
+        <div class="ip-display">
+          <span class="ip-icon">🌐</span>
+          <div class="ip-text">
+            <div class="ip-label">网页全能后台管理端地址:</div>
+            <div id="web-url" class="ip-value">http://127.0.0.1:8088</div>
+          </div>
+        </div>
+        <div class="ip-display" style="margin-top: 8px;">
+          <span class="ip-icon">📱</span>
+          <div class="ip-text">
+            <div class="ip-label">讲解员极简手持遥控端 (手机/iPad):</div>
+            <div id="remote-url" class="ip-value" style="color: #10b981;">http://127.0.0.1:8088/remote</div>
+          </div>
+        </div>
+        <div class="tip-text">在同局域网手机、iPad 或控制电脑浏览器打开即可操控</div>
+      </div>
+    </div>
+
+    <!-- 2. 系统维护与功能调用 (折叠面板，默认折叠) -->
+    <div class="player-collapsible-box collapsed" id="player-hub-box-sys">
+      <div class="player-collapsible-header" id="player-hub-header-sys">
+        <div class="player-collapsible-title-wrap">
+          <span class="player-collapsible-icon">🖥️</span>
+          <span class="player-collapsible-main-title">视窗运维与开机自启</span>
+          <span class="player-collapsible-badge" id="player-sys-badge">横屏模式</span>
+        </div>
+        <div class="player-collapsible-controls">
+          <button class="btn-player-collapsible-toggle" id="btn-player-sys-toggle" type="button">
+            <span id="player-sys-toggle-text">展开</span>
+            <span class="player-collapsible-toggle-icon">▾</span>
+          </button>
+        </div>
+      </div>
+      <div class="player-collapsible-content" id="player-sys-content">
+        <div class="key-actions-row" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px;">
+          <button id="btn-toggle-fs" class="btn-tool-action highlight" title="退出全屏并解除置顶，便于调试；再次点击恢复全屏">🗗 退出全屏</button>
+          <button id="btn-toggle-orientation" class="btn-tool-action" style="background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.4);color:#c084fc;font-weight:600;" title="一键切换大屏横竖屏显示方向 (横屏 16:9 / 竖屏 9:16)">🖥️ 横竖屏切换 (当前: 横屏)</button>
+          <label for="player-file-input" id="btn-player-upload-media" class="btn-tool-action" style="background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.4);color:#34d399;font-weight:600;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;" title="从本地设备选取音视频、图片、音频、文档等素材直传并即时播映">📤 上传素材</label>
+          <input type="file" id="player-file-input" multiple accept="*/*" style="display:none;" />
+        </div>
+        <!-- 多物理显示器跨屏切换 (多屏环境下自动展示) -->
+        <div id="player-monitors-row" style="margin-bottom:10px;display:none;">
+          <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:#94a3b8;margin-bottom:4px;font-weight:600;">
+            <span>🖥️ 投映目标显示器 (多屏切换):</span>
+          </label>
+          <select id="player-select-monitor" style="width:100%;padding:6px 10px;background:#020617;border:1px solid rgba(0,240,255,0.35);border-radius:6px;color:#00f0ff;font-size:12px;font-weight:600;outline:none;cursor:pointer;"></select>
+        </div>
+        <div class="autostart-row">
+          <label class="autostart-label">
+            <input type="checkbox" id="chk-autostart" />
+            <span>开机自动启动播控系统</span>
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. 定时关机排程设置 (折叠面板，默认折叠，只保留定时关机) -->
+    <div class="player-collapsible-box collapsed" id="player-hub-box-sched">
+      <div class="player-collapsible-header" id="player-hub-header-sched">
+        <div class="player-collapsible-title-wrap">
+          <span class="player-collapsible-icon">⏰</span>
+          <span class="player-collapsible-main-title">定时关机排程</span>
+          <span class="player-collapsible-badge" id="player-sched-badge">未启用</span>
+        </div>
+        <div class="player-collapsible-controls">
+          <button class="btn-player-collapsible-toggle" id="btn-player-sched-toggle" type="button">
+            <span id="player-sched-toggle-text">展开</span>
+            <span class="player-collapsible-toggle-icon">▾</span>
+          </button>
+        </div>
+      </div>
+      <div class="player-collapsible-content" id="player-sched-content">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <span style="font-size:12px; color:#94a3b8; font-weight:600;">现场关机排程:</span>
+          <label style="display:inline-flex; align-items:center; gap:6px; font-size:12px; color:#38bdf8; cursor:pointer;">
+            <input type="checkbox" id="panel-sched-enable" />
+            <span>启用定时关机</span>
+          </label>
+        </div>
+        <!-- 安卓端专属：每日定时开启按钮与时间 (到达时间自动关闭黑场，恢复待机放映) -->
+        <div id="panel-sched-boot-group" style="background:rgba(15,23,42,0.85); padding:8px 12px; border-radius:8px; border:1px solid rgba(16,185,129,0.3); margin-bottom:10px; display:none;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <span style="font-size:12px; color:#34d399; font-weight:600;">☀️ 每日定时开启 (安卓唤醒):</span>
+            <label style="display:inline-flex; align-items:center; gap:5px; font-size:11px; color:#34d399; cursor:pointer;">
+              <input type="checkbox" id="panel-sched-boot-enable" checked />
+              <span>启用定时开启</span>
+            </label>
+          </div>
+          <input type="time" id="panel-sched-boot-time" value="08:30" style="width:100%; box-sizing:border-box; padding:6px 10px; background:#020617; border:1px solid #059669; border-radius:6px; color:#34d399; font-size:16px; font-weight:700; outline:none;" />
+        </div>
+        <div style="background:rgba(15,23,42,0.8); padding:8px 12px; border-radius:8px; border:1px solid rgba(255,255,255,0.08); margin-bottom:10px;">
+          <span style="font-size:12px; color:#38bdf8; display:block; margin-bottom:6px; font-weight:600;">🌙 每日定时关机时间:</span>
+          <input type="time" id="panel-sched-shutdown-time" value="21:30" style="width:100%; box-sizing:border-box; padding:6px 10px; background:#020617; border:1px solid #334155; border-radius:6px; color:#00f0ff; font-size:16px; font-weight:700; outline:none;" />
+        </div>
+        <div style="display:flex; gap:4px; flex-wrap:wrap; margin-bottom:10px;" id="panel-weekday-chips">
+          <label class="weekday-tag active" data-day="1"><input type="checkbox" class="panel-chk-day" value="1" checked style="display:none;" />周一</label>
+          <label class="weekday-tag active" data-day="2"><input type="checkbox" class="panel-chk-day" value="2" checked style="display:none;" />周二</label>
+          <label class="weekday-tag active" data-day="3"><input type="checkbox" class="panel-chk-day" value="3" checked style="display:none;" />周三</label>
+          <label class="weekday-tag active" data-day="4"><input type="checkbox" class="panel-chk-day" value="4" checked style="display:none;" />周四</label>
+          <label class="weekday-tag active" data-day="5"><input type="checkbox" class="panel-chk-day" value="5" checked style="display:none;" />周五</label>
+          <label class="weekday-tag active" data-day="6"><input type="checkbox" class="panel-chk-day" value="6" checked style="display:none;" />周六</label>
+          <label class="weekday-tag active" data-day="7"><input type="checkbox" class="panel-chk-day" value="7" checked style="display:none;" />周日</label>
+        </div>
+        <button type="button" id="btn-save-panel-sched" class="btn-save-app" style="background:linear-gradient(135deg, #0284c7, #0369a1); font-size:12px; padding:8px; width:100%;">💾 保存定时关机排程</button>
+      </div>
+    </div>
+
+    <!-- 4. 受控端指定并保存第三方应用程序 (折叠面板，默认折叠，带滑动条) -->
+    <div class="player-collapsible-box collapsed" id="player-hub-box-apps">
+      <div class="player-collapsible-header" id="player-hub-header-apps">
+        <div class="player-collapsible-title-wrap">
+          <span class="player-collapsible-icon">🚀</span>
+          <span class="player-collapsible-main-title">外部应用程序管理</span>
+          <span class="player-collapsible-badge" id="player-apps-badge">0 个程序</span>
+        </div>
+        <div class="player-collapsible-controls">
+          <button class="btn-player-collapsible-toggle" id="btn-player-apps-toggle" type="button">
+            <span id="player-apps-toggle-text">展开</span>
+            <span class="player-collapsible-toggle-icon">▾</span>
+          </button>
+        </div>
+      </div>
+      <div class="player-collapsible-content" id="player-apps-content">
+        <div class="app-config-form">
+          <input type="hidden" id="input-app-id" />
+          <input type="text" id="input-app-name" placeholder="应用名称 (如: 3D数字沙盘)" />
+          <div class="input-with-btn">
+            <input type="text" id="input-app-path" placeholder="程序绝对路径 (可点击浏览选择)" />
+            <button id="btn-browse-app" class="btn-secondary" title="打开系统文件选择器">📂 浏览选择</button>
+          </div>
+          <div class="form-btn-row">
+            <button id="btn-save-app" class="btn-save-app">确认保存应用</button>
+            <button id="btn-cancel-app-edit" class="btn-secondary hidden">取消编辑</button>
+          </div>
+        </div>
+        <!-- 已注册的第三方应用管理列表 -->
+        <div class="registered-apps-list" id="registered-apps-list">
+          <!-- 动态渲染 -->
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. 商业授权与激活中心 (置于受控端抽屉面板最底部) -->
+    <div class="player-collapsible-box collapsed" id="player-hub-box-lic">
+      <div class="player-collapsible-header" id="player-hub-header-lic">
+        <div class="player-collapsible-title-wrap">
+          <span class="player-collapsible-icon">🛡️</span>
+          <span class="player-collapsible-main-title">商业授权与激活中心</span>
+          <span class="player-collapsible-badge" id="player-lic-badge">检测中...</span>
+        </div>
+        <div class="player-collapsible-controls">
+          <button class="btn-player-collapsible-toggle" id="btn-player-lic-toggle" type="button">
+            <span id="player-lic-toggle-text">展开</span>
+            <span class="player-collapsible-toggle-icon">▾</span>
+          </button>
+        </div>
+      </div>
+      <div class="player-collapsible-content" id="player-lic-content">
+        <div style="background:rgba(0,0,0,0.4); border:1px solid rgba(0,240,255,0.25); border-radius:8px; padding:10px 12px; margin-bottom:10px;">
+          <div style="font-size:11px; color:#94a3b8; margin-bottom:4px;">本机 8 位动态随机申请码 (单次有效 · 填入授权计算器/管理端):</div>
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span id="player-req-code-disp" style="font-family:'Consolas',monospace; font-size:18px; font-weight:700; color:#00f0ff;">--------</span>
+            <button id="btn-player-copy-req" type="button" class="btn-tool-action highlight" style="padding:4px 10px; font-size:12px; cursor:pointer;">📋 复制申请码</button>
+          </div>
+        </div>
+        <div style="margin-bottom:10px;">
+          <label style="display:block; font-size:12px; color:#cbd5e1; margin-bottom:4px; font-weight:600;">输入 12 位授权激活码 (XXXX-XXXX-XXXX):</label>
+          <input type="text" id="player-lic-input" placeholder="XXXX-XXXX-XXXX" maxlength="14" style="width:100%; box-sizing:border-box; background:#020617; border:1px solid #334155; border-radius:6px; padding:8px 10px; font-size:16px; font-family:'Consolas',monospace; color:#34d399; text-align:center; outline:none;" />
+        </div>
+        <button id="btn-player-activate" type="button" class="btn-save-app" style="background:linear-gradient(135deg, #10b981, #059669); font-size:13px; padding:9px; width:100%; cursor:pointer;">⚡ 验证并激活授权</button>
+        <div id="player-lic-msg" style="font-size:12px; text-align:center; margin-top:6px; min-height:16px;"></div>
+        <div style="font-size:11px; color:#64748b; text-align:center; margin-top:8px; border-top:1px dashed rgba(255,255,255,0.08); padding-top:6px;">
+          商务与技术支持热线: <span style="color:#38bdf8; font-weight:600;">19203642022</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-footer-tip">
+      提示：按 <b>H</b> 键可切换全屏与抽屉面板，恢复纯净大屏播映
+    </div>
+  </div>
+
+  <script src="/static/hls.min.js"></script>
+  <script src="/static/player.js"></script>
+
+  <!-- 大屏端商业授权管理弹窗 -->
+  <div id="screen-license-modal" class="screen-modal-overlay hidden">
+    <div class="screen-modal-box">
+      <div class="screen-modal-header">
+        <div class="screen-modal-title">🛡️ VisualCast 商业授权激活中心</div>
+        <button id="btn-close-screen-lic-modal" class="btn-screen-modal-close">✕</button>
+      </div>
+      <div class="screen-modal-body">
+        <div class="screen-lic-row">
+          <span class="screen-lic-label">当前授权状态:</span>
+          <span id="screen-lic-status" class="screen-lic-status danger">⚠️ 系统未授权</span>
+        </div>
+        <div class="screen-lic-card">
+          <div class="screen-lic-card-title">🔑 本机 8 位动态申请码 (单机单次有效):</div>
+          <div class="screen-lic-code-row">
+            <span id="screen-lic-req-code" class="screen-lic-req-code">--------</span>
+            <button id="btn-screen-copy-req-code" class="btn-screen-copy">📋 复制申请码</button>
+          </div>
+          <div class="screen-lic-tip">请将该申请码提供给商务技术人员或使用【国文创加密机】签发 12 位激活码。</div>
+        </div>
+        <div class="screen-lic-input-box">
+          <label>请输入 12 位商业激活码 (格式: XXXX-XXXX-XXXX):</label>
+          <input type="text" id="screen-lic-input" placeholder="请在此输入或粘贴 12 位激活码" />
+        </div>
+        <div class="screen-modal-actions">
+          <button id="btn-screen-cancel-lic" class="btn-screen-modal-cancel">关闭</button>
+          <button id="btn-screen-apply-lic" class="btn-screen-modal-confirm">立即验证激活</button>
+        </div>
+        <div class="screen-lic-footer-tip">
+          💡 同局域网内，也可直接在电脑/手机浏览器中访问后台 <b>http://127.0.0.1:8088</b> 进行激活。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 大屏端原生无线投屏看板 -->
+  <div id="cast-board-modal" class="screen-modal-overlay hidden">
+    <div class="screen-modal-box cast-board-box">
+      <div class="screen-modal-header">
+        <div class="screen-modal-title">📡 VisualCast 局域网极简无线投屏</div>
+        <button id="btn-close-cast-board" class="btn-screen-modal-close">✕ 关闭看板并恢复放映</button>
+      </div>
+      <div class="screen-modal-body">
+        <div class="cast-board-hero">
+          <div class="cast-hero-title">🎯 投屏广播设备名称:</div>
+          <div id="cast-board-device-name" class="cast-hero-device">VisualCast 展厅大屏</div>
+          <div class="cast-hero-tip">手机、电脑或 iPad 与大屏连入同一局域网 Wi-Fi 即可免装 App 直连投屏</div>
+        </div>
+        <div class="cast-guides-grid">
+          <div class="cast-guide-item">
+            <div class="cast-guide-icon">🍎</div>
+            <div class="cast-guide-name">苹果设备 (iPhone / Mac / iPad)</div>
+            <div class="cast-guide-desc">屏幕右上角下拉进入【控制中心】，点击【屏幕镜像】，选择上方投屏设备名称即可。</div>
+          </div>
+          <div class="cast-guide-item">
+            <div class="cast-guide-icon">🤖</div>
+            <div class="cast-guide-name">安卓设备 (华为 / 小米 / OPPO / vivo)</div>
+            <div class="cast-guide-desc">下拉通知栏点击【无线投屏】或【多屏互动】，搜索连接上方投屏设备名即可。</div>
+          </div>
+          <div class="cast-guide-item">
+            <div class="cast-guide-icon">💻</div>
+            <div class="cast-guide-name">Windows 电脑</div>
+            <div class="cast-guide-desc">键盘按下快捷键 <b>Win + K</b>，右侧列表选择上方设备名称，即可实现秒级整机投屏。</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- 未授权强阻断全屏遮罩 (未激活时锁死，禁止任何操作与播控，直到输入有效激活码) -->
+  <div id="blocking-license-overlay" class="blocking-license-overlay hidden">
+    <div class="blocking-license-box">
+      <div class="blocking-header">
+        <span id="blocking-lic-icon" class="lock-icon">🔒</span>
+        <h2 id="blocking-lic-title">VisualCast 商业系统未授权</h2>
+        <p id="blocking-lic-subtitle" class="blocking-subtitle">请激活商业授权以解锁展厅大屏播控系统</p>
+      </div>
+      <div class="blocking-body">
+        <div class="blocking-code-card">
+          <div class="code-label">🔑 本机 8 位动态申请码 (单次有效):</div>
+          <div class="code-val-row">
+            <span id="blocking-req-code" class="blocking-code-text">--------</span>
+            <button type="button" id="btn-blocking-copy-code" class="btn-blocking-copy">📋 复制</button>
+          </div>
+          <div class="code-hint">请向商务技术人员提供上方申请码或通过【国文创加密机】签发 12 位激活码。</div>
+        </div>
+        <div class="blocking-input-group">
+          <label>请输入 12 位商业激活码 (格式: XXXX-XXXX-XXXX):</label>
+          <input type="text" id="blocking-key-input" placeholder="输入 12 位商业激活码" autofocus />
+        </div>
+        <button type="button" id="btn-blocking-submit" class="btn-blocking-submit">立即验证并解锁系统</button>
+        <div id="blocking-error-tip" class="blocking-error-tip hidden"></div>
+        <div class="blocking-footer">
+          💡 同局域网手机/电脑也可直接访问后台 <b>http://[本机IP]:8088</b> 进行激活解锁。
+        </div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>

@@ -1,0 +1,297 @@
+{
+  "devices": [
+    {
+      "id": "laser_projector_01",
+      "name": "主展厅激光投影机",
+      "type": "TCP",
+      "protocol": "ascii",
+      "host": "192.168.3.66",
+      "port": 8000,
+      "on_cmd": "%1POWR 1",
+      "off_cmd": "%1POWR 0",
+      "commands": {
+        "on": "%1POWR 1",
+        "off": "%1POWR 0"
+      }
+    },
+    {
+      "id": "ambient_light_01",
+      "name": "DMX展厅顶面照明",
+      "type": "UDP",
+      "protocol": "hex",
+      "host": "192.168.3.66",
+      "port": 8000,
+      "on_cmd": "41 72 74 2D 4E 65 74 00 00 50 00 0E 00 00 01 00 00 02 FF FF",
+      "off_cmd": "41 72 74 2D 4E 65 74 00 00 50 00 0E 00 00 01 00 00 02 00 00",
+      "commands": {
+        "on": "41 72 74 2D 4E 65 74 00 00 50 00 0E 00 00 01 00 00 02 FF FF",
+        "off": "41 72 74 2D 4E 65 74 00 00 50 00 0E 00 00 01 00 00 02 00 00"
+      }
+    },
+    {
+      "id": "ac_gateway_01",
+      "name": "展厅新风温控空调",
+      "type": "HTTP",
+      "host": "192.168.1.203",
+      "port": 80,
+      "protocol": "ascii",
+      "on_cmd": "http://192.168.1.203/api/ac/power?state=on&temp=24",
+      "off_cmd": "http://192.168.1.203/api/ac/power?state=off",
+      "desc": "智能温控新风联动网关"
+    },
+    {
+      "id": "motor_curtain_01",
+      "name": "电动遮光幕帘",
+      "type": "TCP",
+      "host": "192.168.1.204",
+      "port": 8080,
+      "protocol": "hex",
+      "on_cmd": "EE 01 01 FF",
+      "off_cmd": "EE 01 02 FF",
+      "desc": "光影展区电动遮光升降电机"
+    }
+  ],
+  "macros": {
+    "open_pavilion": {
+      "name": "一键开馆流程",
+      "desc": "展厅早间全自动预热启动流水线",
+      "steps": [
+        {
+          "step": 1,
+          "title": "开启主时序电源",
+          "delay": 0,
+          "device_id": "seq_power_01",
+          "cmd": "on"
+        },
+        {
+          "step": 2,
+          "title": "开启主激光投影机",
+          "delay": 3,
+          "device_id": "laser_projector_01",
+          "cmd": "on"
+        },
+        {
+          "step": 3,
+          "title": "开启展厅主照明与氛围光",
+          "delay": 2,
+          "device_id": "ambient_light_01",
+          "cmd": "on"
+        },
+        {
+          "step": 4,
+          "title": "放下电动遮光幕帘",
+          "delay": 1,
+          "device_id": "motor_curtain_01",
+          "cmd": "on"
+        },
+        {
+          "step": 5,
+          "title": "开启新风空调恒温",
+          "delay": 1,
+          "device_id": "ac_gateway_01",
+          "cmd": "on"
+        },
+        {
+          "step": 6,
+          "title": "大屏自动切入宣传片",
+          "delay": 2,
+          "action": "play_media",
+          "media": "demo_show.mp4"
+        }
+      ]
+    },
+    "close_pavilion": {
+      "name": "一键闭馆流程",
+      "desc": "展厅晚间安全关闭与切断供电流水线",
+      "steps": [
+        {
+          "step": 1,
+          "title": "停止大屏所有视频播放",
+          "delay": 0,
+          "action": "stop_media"
+        },
+        {
+          "step": 2,
+          "title": "关闭激光投影机",
+          "delay": 1,
+          "device_id": "laser_projector_01",
+          "cmd": "off"
+        },
+        {
+          "step": 3,
+          "title": "升起遮光幕帘",
+          "delay": 1,
+          "device_id": "motor_curtain_01",
+          "cmd": "off"
+        },
+        {
+          "step": 4,
+          "title": "关闭展厅照明与空调",
+          "delay": 2,
+          "device_id": "ambient_light_01",
+          "cmd": "off"
+        },
+        {
+          "step": 5,
+          "title": "切断8路时序电源",
+          "delay": 3,
+          "device_id": "seq_power_01",
+          "cmd": "off"
+        }
+      ]
+    }
+  },
+  "custom_scenarios": [
+    {
+      "id": "vip_reception",
+      "name": "贵宾接待模式",
+      "desc": "灯光明亮、遮帘闭合、投影播放迎宾形象片",
+      "steps": [
+        {
+          "step": 1,
+          "title": "调亮灯光",
+          "delay": 0,
+          "device_id": "ambient_light_01",
+          "cmd": "on"
+        },
+        {
+          "step": 2,
+          "title": "降下幕帘",
+          "delay": 1,
+          "device_id": "motor_curtain_01",
+          "cmd": "on"
+        },
+        {
+          "step": 3,
+          "title": "大屏播放海报",
+          "delay": 1,
+          "action": "play_media",
+          "media": "welcome_display.png"
+        }
+      ]
+    },
+    {
+      "id": "energy_saving",
+      "name": "节能午休模式",
+      "desc": "调暗照明、大屏静音、空调降载",
+      "steps": [
+        {
+          "step": 1,
+          "title": "关闭主灯",
+          "delay": 0,
+          "device_id": "ambient_light_01",
+          "cmd": "off"
+        },
+        {
+          "step": 2,
+          "title": "大屏静音黑场",
+          "delay": 0,
+          "action": "blackout"
+        }
+      ]
+    }
+  ],
+  "forwarders": [
+    {
+      "id": "fwd_relay_01",
+      "name": "UDP中控指令中转继电器",
+      "desc": "收到中控UDP 8001命令 RELAY_POWER_ON，自动转发十六进制指令至TCP继电器模块",
+      "enabled": true,
+      "match_protocol": "UDP",
+      "match_type": "CONTAINS",
+      "match_cmd": "RELAY_POWER_ON",
+      "target_protocol": "TCP",
+      "target_host": "192.168.1.188",
+      "target_port": 4001,
+      "target_data_format": "HEX",
+      "target_cmd": "01 05 00 01 FF 00",
+      "delay_ms": 0
+    },
+    {
+      "id": "fwd_serial_01",
+      "name": "TCP总控指令透传至串口灯光",
+      "desc": "收到TCP 8000指令 DMX_SCENE_01，自动向COM2串口中转ASCII控制码",
+      "enabled": true,
+      "match_protocol": "TCP",
+      "match_type": "CONTAINS",
+      "match_cmd": "DMX_SCENE_01",
+      "target_protocol": "SERIAL",
+      "target_host": "COM2",
+      "target_port": 9600,
+      "target_data_format": "TEXT",
+      "target_cmd": "#SCENE_VIP_ON\\r\\n",
+      "delay_ms": 50
+    },
+    {
+      "id": "fwd_http_sensor_01",
+      "name": "雷达感应串口指令中转大屏",
+      "desc": "COM1串口雷达触发 RADAR_ACTIVE 时，自动转发HTTP指令驱动大屏切换视频",
+      "enabled": true,
+      "match_protocol": "SERIAL",
+      "listen_serial_port": "COM1",
+      "listen_baudrate": 9600,
+      "match_type": "CONTAINS",
+      "match_cmd": "RADAR_ACTIVE",
+      "target_protocol": "HTTP",
+      "target_host": "127.0.0.1",
+      "target_port": 8080,
+      "target_data_format": "TEXT",
+      "target_cmd": "http://127.0.0.1:8080/api/iot/trigger?cmd=SWITCH:1",
+      "delay_ms": 0
+    }
+  ],
+  "timeline": {
+    "master": {
+      "type": "video",
+      "name": "展厅默认开场片.mp4",
+      "url": "",
+      "duration": 60
+    },
+    "tracks": [
+      {
+        "id": "track_light",
+        "name": "展厅顶光与氛围照明轨",
+        "nodes": [
+          {
+            "id": "node_1",
+            "time": 5.0,
+            "device_id": "ambient_light_01",
+            "action": "on",
+            "custom_cmd": "",
+            "label": "顶光开启"
+          },
+          {
+            "id": "node_2",
+            "time": 50.0,
+            "device_id": "ambient_light_01",
+            "action": "off",
+            "custom_cmd": "",
+            "label": "顶光关闭"
+          }
+        ]
+      },
+      {
+        "id": "track_motor",
+        "name": "投影与机械升降控制轨",
+        "nodes": [
+          {
+            "id": "node_3",
+            "time": 2.0,
+            "device_id": "laser_projector_01",
+            "action": "on",
+            "custom_cmd": "",
+            "label": "投影机开机"
+          },
+          {
+            "id": "node_4",
+            "time": 10.0,
+            "device_id": "motor_curtain_01",
+            "action": "on",
+            "custom_cmd": "",
+            "label": "幕帘下降"
+          }
+        ]
+      }
+    ]
+  }
+}

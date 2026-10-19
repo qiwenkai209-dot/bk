@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>胜利油田科普馆控制系统</title>
+<style>
+/* ===== 全局样式 ===== */
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{width:100%;height:100%;font-family:'Microsoft YaHei','PingFang SC','Helvetica Neue',Arial,sans-serif;overflow-x:hidden;}
+body{background:linear-gradient(135deg,#0a0e27 0%,#1a1f3d 40%,#0d1a3a 100%);color:#fff;min-height:100vh;}
+
+/* ===== 顶部标题栏 ===== */
+.header{
+  text-align:center;padding:18px 10px 10px;
+  background:linear-gradient(180deg,rgba(20,40,100,0.8) 0%,transparent 100%);
+  border-bottom:1px solid rgba(100,160,255,0.2);
+}
+.header h1{font-size:clamp(18px,3.5vw,28px);letter-spacing:4px;color:#7ec8f8;text-shadow:0 0 15px rgba(100,180,255,0.6);}
+
+/* ===== 全馆控制区域 ===== */
+.global-control{
+  display:flex;justify-content:center;gap:20px;padding:16px 10px;
+  background:linear-gradient(180deg,rgba(10,20,60,0.6) 0%,transparent 100%);
+}
+.global-btn{
+  position:relative;min-width:140px;padding:14px 28px;font-size:clamp(14px,2.2vw,18px);
+  font-weight:700;letter-spacing:3px;border:none;border-radius:8px;cursor:pointer;
+  transition:all 0.35s ease;color:#fff;overflow:hidden;
+}
+.global-btn::before{
+  content:'';position:absolute;top:0;left:-100%;width:100%;height:100%;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,0.15),transparent);
+  transition:left 0.5s ease;
+}
+.global-btn:hover::before{left:100%;}
+.global-btn:active{transform:scale(0.96);}
+.global-btn.open{background:linear-gradient(135deg,#00c853,#009624);box-shadow:0 4px 20px rgba(0,200,83,0.4);}
+.global-btn.open:hover{box-shadow:0 6px 30px rgba(0,200,83,0.6);}
+.global-btn.close{background:linear-gradient(135deg,#ff1744,#c4001d);box-shadow:0 4px 20px rgba(255,23,68,0.4);}
+.global-btn.close:hover{box-shadow:0 6px 30px rgba(255,23,68,0.6);}
+.global-btn:disabled{opacity:0.35;cursor:not-allowed;transform:none;box-shadow:none;}
+.global-btn:disabled::before{display:none;}
+.global-btn .icon{margin-right:6px;font-size:1.1em;}
+
+/* ===== 导航标签 ===== */
+.nav-tabs{
+  display:flex;flex-wrap:wrap;justify-content:center;gap:8px;
+  padding:12px 10px;
+  border-bottom:1px solid rgba(100,160,255,0.15);
+}
+.nav-tab{
+  padding:8px 18px;font-size:clamp(12px,1.8vw,14px);font-weight:600;
+  color:rgba(255,255,255,0.6);background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.1);border-radius:6px;
+  cursor:pointer;transition:all 0.3s;letter-spacing:1px;
+}
+.nav-tab:hover{color:#7ec8f8;border-color:rgba(126,200,248,0.4);}
+.nav-tab.active{
+  color:#fff;background:linear-gradient(135deg,rgba(30,60,140,0.8),rgba(50,100,200,0.6));
+  border-color:rgba(100,180,255,0.5);box-shadow:0 2px 12px rgba(50,100,200,0.3);
+}
+
+/* ===== 设备面板 ===== */
+.panel{display:none;padding:16px 10px;animation:fadeIn 0.3s ease;}
+.panel.active{display:block;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+.panel-title{
+  font-size:clamp(14px,2vw,18px);color:#7ec8f8;margin-bottom:14px;
+  padding-bottom:8px;border-bottom:1px solid rgba(100,160,255,0.2);
+  letter-spacing:2px;
+}
+
+/* ===== 设备分组 ===== */
+.device-group{margin-bottom:16px;}
+.group-title{
+  font-size:clamp(12px,1.6vw,14px);color:rgba(255,255,255,0.5);
+  margin-bottom:8px;padding-left:4px;
+}
+.device-grid{
+  display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:10px;
+}
+
+/* ===== 设备卡片 ===== */
+.device-card{
+  display:flex;align-items:center;justify-content:space-between;
+  background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);
+  border-radius:8px;padding:10px 14px;transition:all 0.25s;
+}
+.device-card:hover{background:rgba(255,255,255,0.08);border-color:rgba(100,160,255,0.25);}
+.device-name{font-size:clamp(12px,1.5vw,14px);color:rgba(255,255,255,0.85);flex:1;margin-right:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.device-btns{display:flex;gap:6px;flex-shrink:0;}
+
+/* ===== 控制按钮 ===== */
+.ctrl-btn{
+  padding:6px 14px;font-size:clamp(11px,1.3vw,13px);font-weight:600;
+  border:none;border-radius:5px;cursor:pointer;transition:all 0.25s;color:#fff;
+  letter-spacing:1px;
+}
+.ctrl-btn:active{transform:scale(0.94);}
+.ctrl-btn.on{background:linear-gradient(135deg,#2196F3,#1565C0);}
+.ctrl-btn.on:hover{box-shadow:0 2px 10px rgba(33,150,243,0.4);}
+.ctrl-btn.off{background:linear-gradient(135deg,#546E7A,#37474F);}
+.ctrl-btn.off:hover{box-shadow:0 2px 10px rgba(84,110,122,0.4);}
+
+/* ===== 全开/全关按钮行 ===== */
+.section-controls{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;}
+.section-btn{
+  padding:8px 20px;font-size:clamp(12px,1.5vw,14px);font-weight:700;
+  border:none;border-radius:6px;cursor:pointer;color:#fff;transition:all 0.3s;
+  letter-spacing:2px;
+}
+.section-btn.open{background:linear-gradient(135deg,#43A047,#2E7D32);}
+.section-btn.open:hover{box-shadow:0 3px 15px rgba(67,160,71,0.5);}
+.section-btn.close{background:linear-gradient(135deg,#e53935,#b71c1c);}
+.section-btn.close:hover{box-shadow:0 3px 15px rgba(229,57,53,0.5);}
+
+/* ===== 点播按钮颜色 ===== */
+.section-btn.vd {background:linear-gradient(135deg,#ff9800,#e65100);}
+.section-btn.vd:hover {box-shadow:0 3px 15px rgba(255,152,0,0.5);}
+.section-btn.df {background:linear-gradient(135deg,#ffeb3b,#fbc02d);color:#333;}
+.section-btn.df:hover {box-shadow:0 3px 15px rgba(255,235,59,0.5);}
+.section-btn.db {background:linear-gradient(135deg,#9c27b0,#6a1b9a);}
+.section-btn.db:hover {box-shadow:0 3px 15px rgba(156,39,176,0.5);}
+
+/* ===== 状态提示 ===== */
+.toast{
+  position:fixed;top:20px;left:50%;transform:translateX(-50%) translateY(-80px);
+  padding:12px 28px;border-radius:8px;font-size:14px;font-weight:600;
+  z-index:9999;transition:transform 0.4s ease;pointer-events:none;
+  box-shadow:0 4px 20px rgba(0,0,0,0.4);
+}
+.toast.show{transform:translateX(-50%) translateY(0);}
+.toast.success{background:linear-gradient(135deg,#00c853,#009624);color:#fff;}
+.toast.error{background:linear-gradient(135deg,#ff1744,#c4001d);color:#fff;}
+.toast.info{background:linear-gradient(135deg,#2196F3,#1565C0);color:#fff;}
+
+/* ===== 加载动画 ===== */
+.loading-overlay{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;
+  z-index:9998;opacity:0;pointer-events:none;transition:opacity 0.3s;
+}
+.loading-overlay.show{opacity:1;pointer-events:auto;}
+.spinner{width:40px;height:40px;border:4px solid rgba(255,255,255,0.2);border-top-color:#7ec8f8;border-radius:50%;animation:spin 0.8s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ===== 响应式 ===== */
+@media(max-width:600px){
+  .global-control{gap:12px;padding:12px 8px;}
+  .global-btn{min-width:110px;padding:12px 18px;font-size:14px;}
+  .device-grid{grid-template-columns:1fr;}
+  .nav-tabs{gap:6px;padding:10px 8px;}
+  .nav-tab{padding:6px 12px;font-size:12px;}
+}
+@media(max-width:400px){
+  .global-btn{min-width:90px;padding:10px 14px;font-size:13px;}
+}
+</style>
+</head>
+<body>
+
+<!-- 顶部标题 -->
+<div class="header" style="position: relative;">
+  <h1>胜利油田科普馆控制系统</h1>
+</div>
+
+<!-- 展馆全开/全关按钮 -->
+<div class="global-control">
+  <button class="global-btn open" id="btnGlobalOpen" onclick="globalOpen()">
+    <span class="icon">⚡</span>展馆全开
+  </button>
+  <button class="global-btn close" id="btnGlobalClose" onclick="globalClose()" disabled>
+    <span class="icon">⏻</span>展馆全关
+  </button>
+</div>
+
+<!-- 导航标签 -->
+<div class="nav-tabs" id="navTabs">
+  <div class="nav-tab active" onclick="switchTab(0)">点播</div>
+  <div class="nav-tab" onclick="switchTab(1)">中控模块</div>
+  <div class="nav-tab" onclick="switchTab(2)">一体机</div>
+  <div class="nav-tab" onclick="switchTab(3)">投影沙盘</div>
+  <div class="nav-tab" onclick="switchTab(4)">拼接屏</div>
+  <div class="nav-tab" onclick="switchTab(5)">灯光</div>
+</div>
+
+<!-- ============= 点播面板 ============= -->
+<div class="panel active" id="panelOnDemand">
+  <div class="panel-title">点播控制</div>
+  <div class="section-controls">
+    <button class="section-btn vd" onclick="yitijiPlay(0)">55寸新闻一体机</button>
+    <button class="section-btn vd" onclick="yitijiPlay(1)">55寸新闻一体机暂停</button>
+    <button class="section-btn df" onclick="controlsAddVolume(5)">音量 +</button>
+    <button class="section-btn df" onclick="controlsLessVolume(5)">音量 -</button>
+    <button class="section-btn db" onclick="shiyougePlay(2)">石油歌</button>
+    <button class="section-btn db" onclick="zhanjingpenPlay(0)">战井喷</button>
+    <button class="section-btn db" onclick="shapanPlay(2)">沙盘投影</button>
+    <button class="section-btn df" onclick="controlsAddVolume(7)">沙盘音量 +</button>
+    <button class="section-btn df" onclick="controlsLessVolume(7)">沙盘音量 -</button>
+  </div>
+</div>
+
+<!-- ============= 中控模块面板 ============= -->
+<div class="panel" id="panel0">
+  <div class="panel-title">中控模块</div>
+  <div class="section-controls"></div>
+  <div class="device-grid" id="audioDevices"></div>
+</div>
+
+<!-- ============= 一体机面板 ============= -->
+<div class="panel" id="panel1">
+  <div class="panel-title">一体机</div>
+  <div class="section-controls">
+    <button class="section-btn open" onclick="sectionAllOpen('yitiji')">全开</button>
+    <button class="section-btn close" onclick="sectionAllClose('yitiji')">全关</button>
+  </div>
+  <div class="device-grid" id="yitijiDevices"></div>
+</div>
+
+<!-- ============= 投影沙盘面板 ============= -->
+<div class="panel" id="panel2">
+  <div class="panel-title">投影沙盘</div>
+  <div class="section-controls">
+    <button class="section-btn open" onclick="sectionAllOpen('projector')">全开</button>
+    <button class="section-btn close" onclick="sectionAllClose('projector')">全关</button>
+  </div>
+  <div class="device-grid" id="projectorDevices"></div>
+</div>
+
+<!-- ============= 拼接屏面板 ============= -->
+<div class="panel" id="panel3">
+  <div class="panel-title">拼接屏/主机设备</div>
+  <div class="section-controls">
+    <button class="section-btn open" onclick="sectionAllOpen('splicingscreen')">全开</button>
+    <button class="section-btn close" onclick="sectionAllClose('splicingscreen')">全关</button>
+  </div>
+  <div class="device-grid" id="splicingDevices"></div>
+</div>
+
+<!-- ============= 灯光面板 ============= -->
+<div class="panel" id="panel4">
+  <div class="panel-title">灯光控制</div>
+  <div class="section-controls">
+    <button class="section-btn open" onclick="sectionAllOpen('light')">全开</button>
+    <button class="section-btn close" onclick="sectionAllClose('light')">全关</button>
+  </div>
+  <div class="device-grid" id="lightDevices"></div>
+</div>
+
+<!-- 提示 -->
+<div class="toast" id="toast"></div>
+
+<!-- 加载遮罩 -->
+<div class="loading-overlay" id="loadingOverlay"><div class="spinner"></div></div>
+
+<script>
+// ============================
+// 设备配置数据
+// ============================
+var CONFIG = {
+  // 中控模块
+  audioserver: {
+    startPath: '/hotelcontrol/zkmklighton',
+    stopPath: '/hotelcontrol/zkmklighton',
+    allStartPath: '/allservercontrol/allstart',
+    allStopPath: '/allservercontrol/allshutdown',
+    devices: [
+      {name:'点播', id:'zkmk'},
+      {name:'沙盘灯光', id:'xtdd'},
+      {name:'中控模块', id:'xtwwsd'},
+      {name:'一体机', id:'xtdm'},
+      {name:'投影沙盘', id:'sysgdd'},
+      {name:'内圈射灯', id:'xtnqsd'},
+      {name:'视频6米射灯', id:'spw6msdsygsd'},
+      {name:'视频聚顶灯', id:'spwjtdd'},
+      {name:'视频3米射灯', id:'spwc3msd'},
+      {name:'中控模块2', id:'zkmk2'},
+      {name:'射灯可移动型', id:'sdkydx'},
+      {name:'射灯环形集射型', id:'sdhxjsdx'},
+      {name:'客房聚焦', id:'kfjt'},
+      {name:'射灯可翻盖组', id:'sdkyfgz'},
+      {name:'出行玻体射灯', id:'cxbtsd'},
+      {name:'朝阳集投摄像灯', id:'cyjtsxcdd'},
+      {name:'柱体灯带', id:'zt1lxbd'},
+      {name:'6米射灯(东侧)', id:'dczq6msd'},
+      {name:'中控模块3', id:'zkmk3'},
+      {name:'管节换气聚焦灯', id:'gjhqjtd'},
+      {name:'西侧聚焦灯', id:'xlqjtd'},
+      {name:'电源玻体B', id:'dydybtb'},
+      {name:'投影6米射灯', id:'py6msd'},
+      {name:'灯环型翻盖组', id:'dhdxjfgz'},
+      {name:'视频灯膜', id:'spwcdm'},
+      {name:'东侧区顶灯', id:'dczqdd'},
+      {name:'弹缩力营科灯', id:'tslylkdd'},
+      {name:'中控模块4', id:'zkmk4'},
+      {name:'一百二翻盖组', id:'ybebfgz'},
+      {name:'西侧半圈射灯', id:'xlqbsltsd'},
+      {name:'西侧半圈灯', id:'xlqbsltlkd'},
+      {name:'管节换气灯', id:'gjhqlkd'},
+      {name:'5B翻盖组', id:'5bfgz'},
+      {name:'弹缩力营射灯', id:'tslysd'},
+      {name:'客房日全体灯', id:'kfryqtd'},
+      {name:'客房灯', id:'kflkd'},
+      {name:'中控模块5', id:'zkmk5'},
+      {name:'天光导演', id:'tgdy'},
+      {name:'射播射灯', id:'sbsd'},
+      {name:'走廊灯', id:'zzcclkd'},
+      {name:'朝阳射灯', id:'cysd'},
+      {name:'地面射灯', id:'aggpyddxqd'},
+      {name:'一代演射灯', id:'1dysd'},
+      {name:'一代演灯膜', id:'1dydm'},
+      {name:'安格射灯', id:'agsd'}
+    ]
+  },
+  // 一体机
+  yitiji: {
+    startPath: '/hotelcontrol/yitijiStart',
+    stopPath: '/hotelcontrol/yitijiShutdown',
+    allStartPath: '/hotelcontrol/yitijiStart',
+    allStopPath: '/hotelcontrol/yitijiShutdown',
+    devices: [
+      {name:'32寸一体机一', id:'32yitiji1'},
+      {name:'32寸一体机二', id:'32yitiji2'},
+      {name:'32寸一体机三', id:'32yitiji3'},
+      {name:'43寸墙面一体机', id:'dongce43qiangmianyitiji'},
+      {name:'43寸触摸一体机', id:'43chumoyitiji'},
+      {name:'55寸一体机', id:'55yitiji'},
+      {name:'85寸一体机', id:'85yitiji'},
+      {name:'油田开发全程一体机1', id:'ytkfqlcspytj1'},
+      {name:'油田开发全程一体机2', id:'ytkfqlcspytj2'},
+      {name:'实验基金一体机', id:'syjjytj'}
+    ]
+  },
+  // 投影沙盘
+  projector: {
+    startPath: '/hotelcontrol/start',
+    stopPath: '/hotelcontrol/shutdown',
+    allStartPath: '/hotelshapanlightcontrol/on',
+    allStopPath: '/hotelshapanlightcontrol/off',
+    devices: [
+      {name:'流采管网', id:'lcgw'},
+      {name:'原油管网', id:'yygw'},
+      {name:'天然气管网', id:'trqgw'},
+      {name:'各场景存储', id:'gcycslk'},
+      {name:'数字平台', id:'szpt'},
+      {name:'工程井', id:'gcj'},
+      {name:'白利河工程', id:'blhgc'},
+      {name:'海50测试机组', id:'h50csjzc'},
+      {name:'青东5号平台', id:'qd5hpt'},
+      {name:'剩余油田', id:'sx'},
+      {name:'海上平台', id:'hh'},
+      {name:'济源井田', id:'jt'},
+      {name:'石油原田', id:'syyt'},
+      {name:'华北井', id:'hbj'},
+      {name:'离距环合东区', id:'ljhhdq'},
+      {name:'海上平台123', id:'hspt123'},
+      {name:'其他海上平台', id:'qthspt'},
+      {name:'台北井', id:'tbj'},
+      {name:'宫二井', id:'gej'},
+      {name:'石油化工组', id:'syhgzc'},
+      {name:'S15', id:'s15'},
+      {name:'S16', id:'s16'}
+    ]
+  },
+  // 拼接屏
+  splicingscreen: {
+    startPath: '/hotelcontrol/start',
+    stopPath: '/hotelcontrol/shutdown',
+    allStartPath: '/hotelcontrol/start',
+    allStopPath: '/hotelcontrol/shutdown',
+    devices: [
+      {name:'墙面投影一', id:'shenglishapantouying1'},
+      {name:'墙面投影二', id:'shenglishapantouying2'},
+      {name:'墙面投影三', id:'shenglishapantouying3'},
+      {name:'沙盘投影四', id:'shenglishapantouying4'},
+      {name:'沙盘投影五', id:'shenglishapantouying5'},
+      {name:'沙盘投影六', id:'shenglishapantouying6'},
+      {name:'沙盘投影七', id:'shenglishapantouying7'},
+      {name:'沙盘投影八', id:'shenglishapantouying8'},
+      {name:'沙盘投影九', id:'shenglishapantouying9'},
+      {name:'沙盘地面主机', id:'shapandimian'},
+      {name:'墙面主机', id:'shapanqiangmian'}
+    ]
+  },
+  // 灯光
+  light: {
+    startPath: '/hotelcontrol/start',
+    stopPath: '/hotelcontrol/shutdown',
+    allStartPath: '/hotelcontrol/start',
+    allStopPath: '/hotelcontrol/shutdown',
+    devices: [
+      {name:'序厅灯带', id:'shenglizhanjingpentouying'},
+      {name:'序厅外围射灯', id:'zhanjingpen'},
+      {name:'序厅灯膜', id:'zhanchenmoshi'},
+      {name:'石油歌灯带(高)', id:'beiwei'},
+      {name:'序厅内圈射灯', id:'dongwei'},
+      {name:'北走廊灯', id:'beizoulang'},
+      {name:'东走廊灯', id:'dongzoulang'},
+      {name:'梦想厅灯', id:'mengxiangting'},
+      {name:'沙盘灯', id:'shapan'},
+      {name:'展景喷灯', id:'shenglizhanjingpen'},
+      {name:'灯组P1', id:'p1'},
+      {name:'灯组P2', id:'p2'},
+      {name:'灯组P3', id:'p3'},
+      {name:'灯组P4', id:'p4'},
+      {name:'灯组P5', id:'p5'},
+      {name:'灯组P6', id:'p6'},
+      {name:'灯组P7', id:'p7'},
+      {name:'灯组P8', id:'p8'},
+      {name:'灯组P9', id:'p9'},
+      {name:'灯组P10', id:'p10'},
+      {name:'灯组P11', id:'p11'},
+      {name:'灯组P12', id:'p12'},
+      {name:'灯组P13', id:'p13'},
+      {name:'灯组P14', id:'p14'},
+      {name:'灯组P15', id:'p15'},
+      {name:'灯组P16', id:'p16'},
+      {name:'灯组P17', id:'p17'},
+      {name:'灯组P18', id:'p18'},
+      {name:'灯组P19', id:'p19'},
+      {name:'灯组P20', id:'p20'}
+    ]
+  }
+};
+
+// ============================
+// 工具函数
+// ============================
+function showToast(msg, type) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast ' + (type || 'info') + ' show';
+  clearTimeout(t._timer);
+  t._timer = setTimeout(function(){t.className='toast';}, 2500);
+}
+
+function showLoading(v) {
+  document.getElementById('loadingOverlay').className = 'loading-overlay' + (v ? ' show' : '');
+}
+
+function httpGet(url, params, cb) {
+  var qs = Object.keys(params).map(function(k){return k+'='+encodeURIComponent(params[k]);}).join('&');
+  var fullUrl = url + (qs ? '?' + qs : '');
+  var xhr = new XMLHttpRequest();
+  xhr.open('GET', fullUrl, true);
+  xhr.onreadystatechange = function(){
+    if(xhr.readyState === 4){
+      if(xhr.status === 200){
+        try{var d=JSON.parse(xhr.responseText);cb(null,d);}catch(e){cb(null,xhr.responseText);}
+      } else {
+        cb(new Error('请求失败: '+xhr.status));
+      }
+    }
+  };
+  xhr.onerror = function(){cb(new Error('网络错误'));};
+  xhr.timeout = 10000;
+  xhr.ontimeout = function(){cb(new Error('请求超时'));};
+  xhr.send();
+}
+
+// ============================
+// 切换面板
+// ============================
+function switchTab(idx) {
+  var tabs = document.querySelectorAll('.nav-tab');
+  var panels = document.querySelectorAll('.panel');
+
+  for(var i=0; i<tabs.length; i++){
+    tabs[i].className = 'nav-tab' + (i === idx ? ' active' : '');
+  }
+  for(var i=0; i<panels.length; i++){
+    panels[i].className = 'panel' + (i === idx ? ' active' : '');
+  }
+}
+
+// ============================
+// 渲染设备卡片
+// ============================
+function renderDevices() {
+  var sections = [
+    {containerId:'audioDevices', key:'audioserver'},
+    {containerId:'yitijiDevices', key:'yitiji'},
+    {containerId:'projectorDevices', key:'projector'},
+    {containerId:'splicingDevices', key:'splicingscreen'},
+    {containerId:'lightDevices', key:'light'}
+  ];
+
+  sections.forEach(function(sec){
+    var container = document.getElementById(sec.containerId);
+    var cfg = CONFIG[sec.key];
+    var html = '';
+
+    cfg.devices.forEach(function(dev, idx){
+      html += '<div class="device-card">'
+        + '<span class="device-name">' + dev.name + '</span>'
+        + '<div class="device-btns">'
+        + '<button class="ctrl-btn on" onclick="deviceControl(\'' + sec.key + '\',' + idx + ',true)">开</button>'
+        + '<button class="ctrl-btn off" onclick="deviceControl(\'' + sec.key + '\',' + idx + ',false)">关</button>'
+        + '</div></div>';
+    });
+
+    container.innerHTML = html;
+  });
+}
+
+// ============================
+// 单设备控制
+// ============================
+function deviceControl(sectionKey, index, isStart) {
+  var cfg = CONFIG[sectionKey];
+  var dev = cfg.devices[index];
+  var path = isStart ? cfg.startPath : cfg.stopPath;
+
+  showToast((isStart?'正在开启':'正在关闭') + ' ' + dev.name + '...', 'info');
+
+  httpGet(path, {projectNm: dev.id}, function(err, data){
+    if(err){
+      showToast(dev.name + ' 操作失败: ' + err.message, 'error');
+    } else {
+      showToast(dev.name + (isStart?' 已开启':' 已关闭'), 'success');
+    }
+  });
+}
+
+// ============================
+// 模块全开/全关
+// ============================
+function sectionAllOpen(sectionKey) {
+  var cfg = CONFIG[sectionKey];
+  showToast('正在全部开启...', 'info');
+
+  httpGet(cfg.allStartPath, {projectNm:'all'}, function(err, data){
+    if(err){ showToast('全开操作失败', 'error'); }
+    else { showToast('全部开启成功', 'success'); }
+  });
+}
+
+function sectionAllClose(sectionKey) {
+  var cfg = CONFIG[sectionKey];
+  showToast('正在全部关闭...', 'info');
+
+  httpGet(cfg.allStopPath, {projectNm:'all'}, function(err, data){
+    if(err){ showToast('全关操作失败', 'error'); }
+    else { showToast('全部关闭成功', 'success'); }
+  });
+}
+
+// ============================
+// 展馆全开 / 全关（互锁）
+// ============================
+var globalIsOpen = false;
+
+function globalOpen() {
+  if(globalIsOpen) return;
+  if (!confirm('确认要执行“展馆全开”吗？')) return;
+
+  showLoading(true);
+  showToast('展馆全开中，请稍候...', 'info');
+
+  var tasks = [
+    {path:'/allservercontrol/allstart', param:'all'},
+    {path:'/hotelcontrol/yitijiStart', param:'all'},
+    {path:'/hotelshapanlightcontrol/on', param:'all'},
+    {path:'/hotelcontrol/start', param:'all'}
+  ];
+
+  var done = 0, total = tasks.length, hasError = false;
+
+  tasks.forEach(function(t){
+    httpGet(t.path, {projectNm:t.param}, function(err){
+      if(err) hasError = true;
+      done++;
+
+      if(done >= total){
+        showLoading(false);
+        globalIsOpen = true;
+        updateGlobalBtns();
+        showToast(hasError ? '展馆开启完成（部分失败）' : '展馆全部开启成功！', hasError ? 'error' : 'success');
+      }
+    });
+  });
+}
+
+function globalClose() {
+  if(!globalIsOpen) return;
+  if (!confirm('确认要执行“展馆全关”吗？')) return;
+
+  showLoading(true);
+  showToast('展馆全关中，请稍候...', 'info');
+
+  var tasks = [
+    {path:'/allservercontrol/allshutdown', param:'all'},
+    {path:'/hotelcontrol/yitijiShutdown', param:'all'},
+    {path:'/hotelshapanlightcontrol/off', param:'all'},
+    {path:'/hotelcontrol/shutdown', param:'all'}
+  ];
+
+  var done = 0, total = tasks.length, hasError = false;
+
+  tasks.forEach(function(t){
+    httpGet(t.path, {projectNm:t.param}, function(err){
+      if(err) hasError = true;
+      done++;
+
+      if(done >= total){
+        showLoading(false);
+        globalIsOpen = false;
+        updateGlobalBtns();
+        showToast(hasError ? '展馆关闭完成（部分失败）' : '展馆全部关闭成功！', hasError ? 'error' : 'success');
+      }
+    });
+  });
+}
+
+function updateGlobalBtns() {
+  document.getElementById('btnGlobalOpen').disabled = globalIsOpen;
+  document.getElementById('btnGlobalClose').disabled = !globalIsOpen;
+}
+
+// ============================
+// 初始化
+// ============================
+renderDevices();
+</script>
+
+
+<!-- ==================== 胜利油田科普馆控制系统 · 商业授权核心安全系统 ==================== -->
+<style id="shengli-license-styles">
+  /* 授权未通过时的模糊锁定 */
+  body.license-locked > *:not(#shengli-license-overlay):not(#btnShengLiLicenseStatus) {
+    filter: blur(14px) brightness(0.65) !important;
+    pointer-events: none !important;
+    user-select: none !important;
+  }
+  
+  /* 授权全屏遮罩 */
+  #shengli-license-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: radial-gradient(circle at 50% 30%, rgba(13, 26, 58, 0.95) 0%, rgba(3, 8, 24, 0.98) 100%);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    z-index: 9999999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    box-sizing: border-box;
+    font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+  }
+  
+  .shengli-lic-card {
+    background: rgba(16, 28, 64, 0.95);
+    border: 1px solid rgba(100, 180, 255, 0.35);
+    border-radius: 20px;
+    box-shadow: 0 25px 70px rgba(0, 0, 0, 0.8), 0 0 50px rgba(100, 180, 255, 0.2);
+    width: 100%;
+    max-width: 540px;
+    padding: 36px 32px;
+    text-align: center;
+    color: #f8fafc;
+    box-sizing: border-box;
+    animation: shengliLicFadeIn 0.35s ease-out;
+  }
+
+  @keyframes shengliLicFadeIn {
+    from { opacity: 0; transform: scale(0.92) translateY(15px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  .shengli-lic-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(100, 180, 255, 0.15);
+    border: 1px solid rgba(100, 180, 255, 0.4);
+    border-radius: 30px;
+    padding: 6px 16px;
+    color: #7ec8f8;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    margin-bottom: 18px;
+  }
+
+  .shengli-lic-title {
+    font-size: 24px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, #ffffff 0%, #7ec8f8 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .shengli-lic-subtitle {
+    color: #94a3b8;
+    font-size: 13px;
+    margin-bottom: 24px;
+    line-height: 1.5;
+  }
+
+  .shengli-lic-box {
+    background: rgba(0, 0, 0, 0.45);
+    border: 1px solid rgba(100, 180, 255, 0.2);
+    border-radius: 12px;
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  .shengli-lic-label {
+    font-size: 13px;
+    color: #94a3b8;
+    text-align: left;
+  }
+
+  .shengli-lic-code {
+    font-family: 'Consolas', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    color: #7ec8f8;
+    letter-spacing: 2px;
+  }
+
+  .shengli-btn-copy {
+    background: rgba(100, 180, 255, 0.15);
+    border: 1px solid rgba(100, 180, 255, 0.4);
+    color: #7ec8f8;
+    border-radius: 8px;
+    padding: 7px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .shengli-btn-copy:hover {
+    background: #7ec8f8;
+    color: #040810;
+  }
+
+  .shengli-input-wrap {
+    margin-bottom: 20px;
+    text-align: left;
+  }
+
+  .shengli-input-wrap label {
+    display: block;
+    font-size: 12px;
+    color: #cbd5e1;
+    margin-bottom: 8px;
+    font-weight: 600;
+  }
+
+  .shengli-lic-input {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.55);
+    border: 1px solid rgba(100, 180, 255, 0.3);
+    border-radius: 12px;
+    padding: 14px 16px;
+    font-size: 20px;
+    color: #34d399;
+    font-family: 'Consolas', monospace;
+    text-align: center;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-sizing: border-box;
+  }
+
+  .shengli-lic-input:focus {
+    border-color: #7ec8f8;
+    box-shadow: 0 0 16px rgba(100, 180, 255, 0.4);
+  }
+
+  .shengli-btn-submit {
+    width: 100%;
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    color: #ffffff;
+    border: none;
+    border-radius: 12px;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(16, 185, 129, 0.3);
+    transition: all 0.2s;
+  }
+
+  .shengli-btn-submit:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 28px rgba(16, 185, 129, 0.45);
+  }
+
+  .shengli-btn-submit:disabled {
+    background: #334155;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+  }
+
+  .shengli-msg-box {
+    margin-top: 14px;
+    font-size: 13px;
+    line-height: 1.5;
+    min-height: 20px;
+  }
+  .shengli-msg-ok { color: #34d399; font-weight: 600; }
+  .shengli-msg-err { color: #f87171; font-weight: 600; }
+
+  .shengli-contact-box {
+    margin-top: 22px;
+    padding-top: 18px;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #94a3b8;
+  }
+
+  .shengli-contact-val {
+    color: #7ec8f8;
+    font-weight: 700;
+    font-family: monospace;
+    font-size: 13px;
+  }
+
+  /* 顶部导航栏授权状态徽标按钮 */
+  #btnShengLiLicenseStatus {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.35);
+    color: #34d399;
+    border-radius: 8px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  #btnShengLiLicenseStatus:hover {
+    background: rgba(16, 185, 129, 0.25);
+    border-color: #34d399;
+  }
+  @media(max-width: 600px) {
+    #btnShengLiLicenseStatus {
+      position: static !important;
+      transform: none !important;
+      margin: 8px auto 0 !important;
+      display: inline-flex !important;
+    }
+  }
+</style>
+
+<!-- 遮罩 DOM -->
+<div id="shengli-license-overlay" style="display: none;">
+  <div class="shengli-lic-card">
+    <div class="shengli-lic-badge">🛡️ 胜利油田科普馆控制系统 · 商业授权认证</div>
+    <h2 class="shengli-lic-title">系统商业授权认证</h2>
+    <p class="shengli-lic-subtitle">动态随机申请码体系 · 一码单次核销 · 绝不可二次激活</p>
+
+    <div class="shengli-lic-box">
+      <div style="text-align: left;">
+        <div class="shengli-lic-label">本机设备随机申请码 (单次有效):</div>
+        <div class="shengli-lic-code" id="shengli-req-code-disp">--------</div>
+      </div>
+      <button class="shengli-btn-copy" id="btn-shengli-copy-req">复制申请码</button>
+    </div>
+
+    <div class="shengli-input-wrap">
+      <label for="shengli-lic-code-input">输入 12 位商业授权激活码 (XXXX-XXXX-XXXX):</label>
+      <input type="text" class="shengli-lic-input" id="shengli-lic-code-input" placeholder="XXXX-XXXX-XXXX" maxlength="14" autocomplete="off" />
+      <div style="font-size:11px;color:#64748b;margin-top:6px;text-align:left;">
+        * 激活后本机申请码将自动翻转更新，旧激活码立即失效，严禁二次重复使用。
+      </div>
+    </div>
+
+    <button class="shengli-btn-submit" id="btn-shengli-submit-lic">⚡ 立即验证并激活</button>
+
+    <div class="shengli-msg-box" id="shengli-lic-msg"></div>
+
+    <div class="shengli-contact-box">
+      <span>商用采购与授权支持: <span class="shengli-contact-val">19203642022</span></span>
+      <button class="shengli-btn-copy" id="btn-shengli-copy-wechat" style="padding: 4px 10px;">复制微信</button>
+    </div>
+  </div>
+</div>
+
+<script id="shengli-license-guard-script">
+(function() {
+  const CHARSET = '23456789ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const CHAR_TO_VAL = {};
+  for (let i = 0; i < CHARSET.length; i++) CHAR_TO_VAL[CHARSET[i]] = i;
+
+  const SHUFFLE_P_40 = [
+    31, 7, 23, 15, 39, 3, 19, 11, 27, 35,
+    0, 16, 8, 24, 32, 4, 20, 12, 28, 36,
+    1, 17, 9, 25, 33, 5, 21, 13, 29, 37,
+    2, 18, 10, 26, 34, 6, 22, 14, 30, 38
+  ];
+  const SHUFFLE_P_60 = [
+    13, 50, 27, 4, 41, 18, 55, 32, 9, 46, 23, 0, 37, 14, 51, 28, 5, 42, 19, 56,
+    33, 10, 47, 24, 1, 38, 15, 52, 29, 6, 43, 20, 57, 34, 11, 48, 25, 2, 39, 16,
+    53, 30, 7, 44, 21, 58, 35, 12, 49, 26, 3, 40, 17, 54, 31, 8, 45, 22, 59, 36
+  ];
+  const UNSHUFFLE_P_60 = new Array(60).fill(0);
+  for (let i = 0; i < 60; i++) UNSHUFFLE_P_60[SHUFFLE_P_60[i]] = i;
+
+  const DURATION_MAP = {
+    0: ['1天 (体验)', 1], 1: ['3天 (试用)', 3], 2: ['7天 (1周)', 7],
+    3: ['15天 (半月)', 15], 4: ['30天 (1个月)', 30], 5: ['60天 (2个月)', 60],
+    6: ['90天 (1季度)', 90], 7: ['180天 (半年)', 180], 8: ['365天 (1年)', 365],
+    9: ['730天 (2年)', 730], 10: ['1095天 (3年)', 1095], 31: ['永久有效', -1]
+  };
+  const RUNS_MAP = {
+    0: ['5 次', 5], 1: ['10 次', 10], 2: ['20 次', 20], 3: ['50 次', 50],
+    4: ['100 次', 100], 5: ['200 次', 200], 6: ['500 次', 500],
+    7: ['1000 次', 1000], 8: ['2000 次', 2000], 9: ['5000 次', 5000],
+    10: ['10000 次', 10000], 31: ['无限制', -1]
+  };
+
+  // 产品专属密钥 (与 universal_license_core get_product_salt('ShengLi') 100% 一致)
+  const SHENGLI_SALT = new Uint8Array('1e690fba50795fdb664115f793719ea84caefff979d2aee08ac9c2de92301bde'.match(/.{1,2}/g).map(b => parseInt(b, 16)));
+
+  function sha256(ascii) {
+    function rightRotate(value, amount) { return (value >>> amount) | (value << (32 - amount)); }
+    var mathPow = Math.pow, maxWord = mathPow(2, 32);
+    var i, j, words = [], asciiBitLength = ascii.length * 8;
+    var hash = [], k = [], primeCounter = 0, isComposite = {};
+    for (var candidate = 2; primeCounter < 64; candidate++) {
+      if (!isComposite[candidate]) {
+        for (i = 0; i < 313; i += candidate) isComposite[i] = candidate;
+        hash[primeCounter] = (mathPow(candidate, .5) * maxWord) | 0;
+        k[primeCounter++] = (mathPow(candidate, 1 / 3) * maxWord) | 0;
+      }
+    }
+    words = new Array((((asciiBitLength + 64) >>> 9) << 4) + 16).fill(0);
+    for (i = 0; i < ascii.length; i++) words[i >>> 2] |= ascii[i] << (24 - (i % 4) * 8);
+    words[ascii.length >>> 2] |= 0x80 << (24 - (ascii.length % 4) * 8);
+    words[words.length - 1] = asciiBitLength;
+    for (j = 0; j < words.length; j += 16) {
+      var w = words.slice(j, j + 16), oldHash = hash.slice(0);
+      for (i = 0; i < 64; i++) {
+        var w15 = w[i - 15], w2 = w[i - 2];
+        var s0 = rightRotate(w15, 7) ^ rightRotate(w15, 18) ^ (w15 >>> 3);
+        var s1 = rightRotate(w2, 17) ^ rightRotate(w2, 19) ^ (w2 >>> 10);
+        w[i] = (i < 16) ? w[i] : ((w[i - 16] + s0 + w[i - 7] + s1) | 0);
+        var s1_h = rightRotate(hash[4], 6) ^ rightRotate(hash[4], 11) ^ rightRotate(hash[4], 25);
+        var ch = (hash[4] & hash[5]) ^ ((~hash[4]) & hash[6]);
+        var temp1 = (hash[7] + s1_h + ch + k[i] + w[i]) | 0;
+        var s0_h = rightRotate(hash[0], 2) ^ rightRotate(hash[0], 13) ^ rightRotate(hash[0], 22);
+        var maj = (hash[0] & hash[1]) ^ (hash[0] & hash[2]) ^ (hash[1] & hash[2]);
+        var temp2 = (s0_h + maj) | 0;
+        hash[7] = hash[6]; hash[6] = hash[5]; hash[5] = hash[4];
+        hash[4] = (hash[3] + temp1) | 0; hash[3] = hash[2]; hash[2] = hash[1];
+        hash[1] = hash[0]; hash[0] = (temp1 + temp2) | 0;
+      }
+      for (i = 0; i < 8; i++) hash[i] = (hash[i] + oldHash[i]) | 0;
+    }
+    var bytes = [];
+    for (i = 0; i < 8; i++) for (j = 3; j >= 0; j--) bytes.push((hash[i] >>> (j * 8)) & 255);
+    return new Uint8Array(bytes);
+  }
+
+  function hmacSha256(keyBytes, msgBytes) {
+    var blockSize = 64, k = new Uint8Array(blockSize);
+    if (keyBytes.length > blockSize) k.set(sha256(keyBytes)); else k.set(keyBytes);
+    var oKeyPad = new Uint8Array(blockSize), iKeyPad = new Uint8Array(blockSize);
+    for (var i = 0; i < blockSize; i++) { oKeyPad[i] = k[i] ^ 0x5c; iKeyPad[i] = k[i] ^ 0x36; }
+    var inner = new Uint8Array(blockSize + msgBytes.length);
+    inner.set(iKeyPad); inner.set(msgBytes, blockSize);
+    var innerHash = sha256(inner);
+    var outer = new Uint8Array(blockSize + innerHash.length);
+    outer.set(oKeyPad); outer.set(innerHash, blockSize);
+    return sha256(outer);
+  }
+
+  function permuteBitsBigInt(valBig, perm) {
+    let res = 0n;
+    for (let newPos = 0; newPos < perm.length; newPos++) {
+      let oldPos = BigInt(perm[newPos]);
+      let bit = (valBig >> oldPos) & 1n;
+      res |= (bit << BigInt(newPos));
+    }
+    return res;
+  }
+
+  function generateRequestCode(hwHash, nonce) {
+    hwHash &= 0x0FFF; nonce &= 0xFFFF;
+    let msg = new Uint8Array([82, 69, 81, 58, (hwHash >> 8) & 0x0F, hwHash & 0xFF, (nonce >> 8) & 0xFF, nonce & 0xFF]);
+    let digest = hmacSha256(SHENGLI_SALT, msg);
+    let checksum = ((digest[0] << 8) | digest[1]) & 0x0FFF;
+    let rawNum = (BigInt(hwHash) << 28n) | (BigInt(nonce) << 12n) | BigInt(checksum);
+    let shuffled = permuteBitsBigInt(rawNum, SHUFFLE_P_40);
+    let chars = [], tmp = shuffled;
+    for (let i = 0; i < 8; i++) { chars.push(CHARSET[Number(tmp & 0x1Fn)]); tmp >>= 5n; }
+    let s = chars.join('');
+    return `${s.slice(0, 4)}-${s.slice(4)}`;
+  }
+
+  function verifyLicenseCode(codeStr, expectedHwHash, expectedNonce) {
+    let clean = codeStr.replace(/[^23456789ABCDEFGHJKLMNPQRSTUVWXYZ]/gi, '').toUpperCase();
+    if (clean.length !== 12) return { valid: false, error: `激活码必须为 12 位，当前为 ${clean.length} 位` };
+    let num = 0n;
+    for (let i = 0; i < 12; i++) {
+      let val = BigInt(CHAR_TO_VAL[clean[i]]);
+      num |= (val << BigInt(i * 5));
+    }
+    let raw = permuteBitsBigInt(num, UNSHUFFLE_P_60);
+    let sig = Number(raw & 0x3FFFFFn);
+    let runsCode = Number((raw >> 22n) & 0x1Fn);
+    let durationCode = Number((raw >> 27n) & 0x1Fn);
+    let nonce = Number((raw >> 32n) & 0xFFFFn);
+    let hwHash = Number((raw >> 48n) & 0x0FFFn);
+
+    let msg = new Uint8Array([76, 73, 67, 58, (hwHash >> 8) & 0x0F, hwHash & 0xFF, (nonce >> 8) & 0xFF, nonce & 0xFF, durationCode & 0x1F, runsCode & 0x1F]);
+    let digest = hmacSha256(SHENGLI_SALT, msg);
+    let expectedSig = ((digest[0] << 16) | (digest[1] << 8) | digest[2]) & 0x3FFFFF;
+
+    if (sig !== expectedSig) return { valid: false, error: '激活码校验签名不匹配 (防伪验证失败或不属于本系统)' };
+    let isUniversal = (hwHash === 0);
+    if (!isUniversal && hwHash !== expectedHwHash) {
+      return { valid: false, error: `设备指纹不匹配 (#MC-${hwHash.toString(16).toUpperCase()} ≠ #MC-${expectedHwHash.toString(16).toUpperCase()})` };
+    }
+    if (nonce !== expectedNonce) {
+      return { valid: false, error: `随机申请代际已失效 (#${nonce.toString(16).toUpperCase()})，旧激活码不可二次使用` };
+    }
+
+    let durInfo = DURATION_MAP[durationCode] || ['未知时长', -1];
+    let runsInfo = RUNS_MAP[runsCode] || ['无限制', -1];
+    return {
+      valid: true, isUniversal, hwHash, nonce,
+      durationDays: durInfo[1], durationLabel: durInfo[0],
+      maxRuns: runsInfo[1], runsLabel: runsInfo[0]
+    };
+  }
+
+  // 计算设备硬件指纹 (基于浏览器软硬件特征合成)
+  function getDeviceHwHash() {
+    let parts = [
+      navigator.userAgent,
+      screen.width + 'x' + screen.height + 'x' + screen.colorDepth,
+      navigator.hardwareConcurrency || 4,
+      navigator.language || 'zh-CN',
+      navigator.platform || 'Win32'
+    ];
+    let str = parts.join('|');
+    let utf8 = new TextEncoder().encode(str);
+    let d = sha256(utf8);
+    let raw = ((d[0] << 24) | (d[1] << 16) | (d[2] << 8) | d[3]) >>> 0;
+    return (raw % 4095) + 1; // 1 ~ 4095 (12 bits)
+  }
+
+  // Nonce 管理
+  function getOrInitPendingNonce() {
+    let stored = localStorage.getItem('__SHENGLI_PENDING_NONCE__');
+    if (stored) {
+      let n = parseInt(stored, 10);
+      if (!isNaN(n) && n > 0 && n <= 65535) return n;
+    }
+    let newNonce = (Math.floor(Math.random() * 65530) + 1) & 0xFFFF;
+    localStorage.setItem('__SHENGLI_PENDING_NONCE__', newNonce.toString());
+    return newNonce;
+  }
+
+  function rollNewNonce() {
+    let newNonce = (Math.floor(Math.random() * 65530) + 1) & 0xFFFF;
+    localStorage.setItem('__SHENGLI_PENDING_NONCE__', newNonce.toString());
+    return newNonce;
+  }
+
+  // 状态检查
+  function checkCurrentLicense() {
+    let recordStr = localStorage.getItem('__SHENGLI_LICENSE_RECORD__');
+    if (!recordStr) return { active: false, reason: '未授权' };
+    try {
+      let rec = JSON.parse(recordStr);
+      let now = Date.now();
+      if (rec.durationDays !== -1) {
+        let expireTime = rec.activateTime + rec.durationDays * 86400 * 1000;
+        if (now > expireTime) {
+          return { active: false, reason: '授权已到期' };
+        }
+        let remainingDays = Math.ceil((expireTime - now) / (86400 * 1000));
+        return { active: true, record: rec, remainingDays: remainingDays };
+      }
+      return { active: true, record: rec, remainingDays: -1 };
+    } catch(e) {
+      return { active: false, reason: '授权数据解析异常' };
+    }
+  }
+
+  // 初始化 UI
+  function initLicenseProtection() {
+    const overlay = document.getElementById('shengli-license-overlay');
+    const reqCodeDisp = document.getElementById('shengli-req-code-disp');
+    const licInput = document.getElementById('shengli-lic-code-input');
+    const submitBtn = document.getElementById('btn-shengli-submit-lic');
+    const msgBox = document.getElementById('shengli-lic-msg');
+    const btnCopyReq = document.getElementById('btn-shengli-copy-req');
+    const btnCopyWechat = document.getElementById('btn-shengli-copy-wechat');
+
+    let hwHash = getDeviceHwHash();
+    let currentNonce = getOrInitPendingNonce();
+    let currentReqCode = generateRequestCode(hwHash, currentNonce);
+
+    if (reqCodeDisp) reqCodeDisp.textContent = currentReqCode;
+
+    // 格式化激活码输入
+    if (licInput) {
+      licInput.addEventListener('input', (e) => {
+        let raw = e.target.value.toUpperCase().replace(/[^23456789ABCDEFGHJKLMNPQRSTUVWXYZ]/g, '');
+        if (raw.length > 12) raw = raw.slice(0, 12);
+        let parts = [];
+        if (raw.length > 8) parts = [raw.slice(0, 4), raw.slice(4, 8), raw.slice(8)];
+        else if (raw.length > 4) parts = [raw.slice(0, 4), raw.slice(4)];
+        else if (raw.length > 0) parts = [raw];
+        e.target.value = parts.join('-');
+      });
+    }
+
+    // 复制申请码
+    if (btnCopyReq) {
+      btnCopyReq.addEventListener('click', () => {
+        let code = reqCodeDisp.textContent;
+        navigator.clipboard.writeText(code).then(() => {
+          alert('已复制申请码: ' + code + '\n请将其提供给国文创加密机签发激活码。');
+        }).catch(() => {
+          prompt('请手动长按复制设备申请码:', code);
+        });
+      });
+    }
+
+    // 复制微信
+    if (btnCopyWechat) {
+      btnCopyWechat.addEventListener('click', () => {
+        navigator.clipboard.writeText('19203642022').then(() => {
+          alert('已复制商务微信: 19203642022');
+        }).catch(() => {
+          prompt('请复制微信账号:', '19203642022');
+        });
+      });
+    }
+
+    // 提交激活
+    if (submitBtn) {
+      submitBtn.addEventListener('click', () => {
+        let codeVal = licInput.value.trim().toUpperCase();
+        let clean = codeVal.replace(/-/g, '');
+        if (clean.length !== 12) {
+          msgBox.className = 'shengli-msg-box shengli-msg-err';
+          msgBox.textContent = '❌ 请输入完整的 12 位商业授权激活码 (格式: XXXX-XXXX-XXXX)';
+          return;
+        }
+
+        submitBtn.disabled = true;
+        submitBtn.textContent = '正在加密核销验签...';
+        msgBox.textContent = '';
+
+        setTimeout(() => {
+          let res = verifyLicenseCode(codeVal, hwHash, currentNonce);
+          if (res.valid) {
+            // 保存授权凭证
+            let record = {
+              code: codeVal,
+              hwHash: hwHash,
+              durationDays: res.durationDays,
+              durationLabel: res.durationLabel,
+              activateTime: Date.now()
+            };
+            localStorage.setItem('__SHENGLI_LICENSE_RECORD__', JSON.stringify(record));
+
+            // 核心安全：核销翻转 Nonce，杜绝二次使用
+            rollNewNonce();
+
+            msgBox.className = 'shengli-msg-box shengli-msg-ok';
+            msgBox.textContent = `🎉 恭喜！商业授权认证成功 (${res.durationLabel})，正在解锁科普馆控制系统...`;
+
+            setTimeout(() => {
+              document.body.classList.remove('license-locked');
+              overlay.style.display = 'none';
+              updateHeaderBadge(true, res.durationDays === -1 ? '永久有效' : `剩余 ${res.durationDays} 天`);
+            }, 800);
+          } else {
+            msgBox.className = 'shengli-msg-box shengli-msg-err';
+            msgBox.textContent = '❌ ' + (res.error || '激活失败，签名校验不通过');
+            submitBtn.disabled = false;
+            submitBtn.textContent = '⚡ 立即验证并激活';
+          }
+        }, 350);
+      });
+    }
+
+    // 顶部状态徽标
+    function updateHeaderBadge(isActive, text) {
+      let existing = document.getElementById('btnShengLiLicenseStatus');
+      if (!existing) {
+        let header = document.querySelector('.header');
+        if (header) {
+          let btn = document.createElement('button');
+          btn.id = 'btnShengLiLicenseStatus';
+          btn.style.cssText = 'position: absolute; right: 20px; top: 50%; transform: translateY(-50%);';
+          header.appendChild(btn);
+          existing = btn;
+          existing.addEventListener('click', () => {
+            let status = checkCurrentLicense();
+            if (status.active) {
+              let info = status.record;
+              let timeStr = new Date(info.activateTime).toLocaleDateString('zh-CN');
+              let durStr = info.durationDays === -1 ? '永久商业授权' : `有效期 ${info.durationDays} 天 (剩余约 ${status.remainingDays} 天)`;
+              let reAct = confirm(`【胜利油田科普馆控制系统 · 商业授权信息】\n\n• 状态: 授权已生效\n• 模式: ${durStr}\n• 激活日期: ${timeStr}\n• 硬件绑定指纹: #MC-${hwHash.toString(16).toUpperCase()}\n\n是否需要更换/续期激活码？`);
+              if (reAct) {
+                currentNonce = getOrInitPendingNonce();
+                currentReqCode = generateRequestCode(hwHash, currentNonce);
+                reqCodeDisp.textContent = currentReqCode;
+                msgBox.textContent = '';
+                submitBtn.disabled = false;
+                submitBtn.textContent = '⚡ 立即验证并激活';
+                document.body.classList.add('license-locked');
+                overlay.style.display = 'flex';
+              }
+            } else {
+              document.body.classList.add('license-locked');
+              overlay.style.display = 'flex';
+            }
+          });
+        }
+      }
+      if (existing) {
+        existing.innerHTML = isActive ? `🔑 商业授权 [${text}]` : `🔒 商业授权 [未激活]`;
+        existing.style.color = isActive ? '#34d399' : '#f87171';
+        existing.style.borderColor = isActive ? 'rgba(16,185,129,0.4)' : 'rgba(248,113,113,0.4)';
+      }
+    }
+
+    // 初始状态评估
+    let licStatus = checkCurrentLicense();
+    if (licStatus.active) {
+      document.body.classList.remove('license-locked');
+      overlay.style.display = 'none';
+      let t = licStatus.remainingDays === -1 ? '永久有效' : `剩余 ${licStatus.remainingDays} 天`;
+      updateHeaderBadge(true, t);
+    } else {
+      document.body.classList.add('license-locked');
+      overlay.style.display = 'flex';
+      updateHeaderBadge(false, licStatus.reason);
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initLicenseProtection);
+  } else {
+    initLicenseProtection();
+  }
+})();
+</script>
+<!-- ==================== 商业授权系统结束 ==================== -->
+
+</body>
+</html>
+<!-- （注：内容由AI生成） -->

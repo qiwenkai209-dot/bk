@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>VisualCast 极简网页控制端</title>
+  <style>
+    :root {
+      --bg: #0b111e;
+      --card-bg: rgba(18, 28, 48, 0.75);
+      --card-border: rgba(56, 189, 248, 0.25);
+      --accent: #38bdf8;
+      --accent-glow: rgba(56, 189, 248, 0.4);
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --success: #10b981;
+      --danger: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    body {
+      background: var(--bg);
+      background-image: radial-gradient(circle at 10% 20%, rgba(56, 189, 248, 0.08) 0%, transparent 40%),
+                        radial-gradient(circle at 90% 80%, rgba(16, 185, 129, 0.06) 0%, transparent 40%);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Microsoft YaHei", sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      height: 60px;
+      padding: 0 20px;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 16px;
+      color: #fff;
+    }
+    .brand-badge {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--accent);
+      box-shadow: 0 0 10px var(--accent);
+    }
+    .header-links {
+      display: flex;
+      gap: 10px;
+    }
+    .btn-link {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      text-decoration: none;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      transition: all 0.2s;
+    }
+    .btn-link:hover {
+      background: rgba(56, 189, 248, 0.2);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .btn-link.admin {
+      background: rgba(56, 189, 248, 0.15);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    main {
+      flex: 1;
+      max-width: 900px;
+      width: 100%;
+      margin: 20px auto;
+      padding: 0 16px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 768px) {
+      main { grid-template-columns: 1fr; }
+    }
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 18px;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .card-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding-bottom: 10px;
+    }
+    .status-pill {
+      font-size: 11px;
+      padding: 3px 8px;
+      border-radius: 12px;
+      background: rgba(16, 185, 129, 0.15);
+      color: var(--success);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .current-playing-box {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .cp-label { font-size: 11px; color: var(--text-muted); }
+    .cp-title { font-size: 14px; font-weight: 600; color: #fff; word-break: break-all; }
+    .controls-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+    }
+    .btn-ctrl {
+      padding: 12px 8px;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      color: #fff;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .btn-ctrl:hover {
+      background: rgba(56, 189, 248, 0.2);
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+    .btn-ctrl.danger:hover {
+      background: rgba(239, 68, 68, 0.2);
+      border-color: var(--danger);
+      color: var(--danger);
+    }
+    .vol-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .vol-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    input[type=range] {
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: rgba(255,255,255,0.15);
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+    .media-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 400px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .media-item {
+      padding: 10px 12px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .media-item:hover {
+      background: rgba(56, 189, 248, 0.12);
+      border-color: rgba(56, 189, 248, 0.35);
+      color: var(--accent);
+    }
+    .media-item.active {
+      border-color: var(--accent);
+      background: rgba(56, 189, 248, 0.2);
+      color: var(--accent);
+      font-weight: 600;
+    }
+    footer {
+      text-align: center;
+      padding: 16px;
+      font-size: 12px;
+      color: var(--text-muted);
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span class="brand-badge"></span>
+      <span>VisualCast 网页控制端</span>
+    </div>
+    <div class="header-links">
+      <a href="/admin" class="btn-link admin">🛠️ 总控管理后台</a>
+      <a href="/remote" target="_blank" class="btn-link">📱 手机手牌</a>
+      <a href="/player" target="_blank" class="btn-link">🖥️ 大屏窗口</a>
+    </div>
+  </header>
+
+  <main>
+    <!-- 左侧：播放控制与音量 -->
+    <div class="card">
+      <div class="card-title">
+        <span>🎮 实时播放调度</span>
+        <span class="status-pill" id="playerStatus">检测中...</span>
+      </div>
+
+      <div class="current-playing-box">
+        <span class="cp-label">当前正在播放:</span>
+        <span class="cp-title" id="currentMedia">等待大屏连接...</span>
+      </div>
+
+      <div class="controls-grid">
+        <button class="btn-ctrl" id="btnPlay"><span>▶ / ⏸</span><span>播放/暂停</span></button>
+        <button class="btn-ctrl" id="btnStop"><span>⏹</span><span>停止待机</span></button>
+        <button class="btn-ctrl" id="btnBlackout"><span>🕶️</span><span>黑屏遮罩</span></button>
+        <button class="btn-ctrl" id="btnPrev"><span>⏮</span><span>上一节目</span></button>
+        <button class="btn-ctrl" id="btnNext"><span>⏭</span><span>下一节目</span></button>
+        <button class="btn-ctrl" id="btnFreeze"><span>❄️</span><span>画面定格</span></button>
+      </div>
+
+      <div class="vol-wrapper">
+        <div class="vol-header">
+          <span>大屏播放音量</span>
+          <span id="volText">100%</span>
+        </div>
+        <input type="range" id="volumeRange" min="0" max="100" value="100" />
+      </div>
+    </div>
+
+    <!-- 右侧：媒体素材库一键点播 -->
+    <div class="card">
+      <div class="card-title">
+        <span>📂 素材库直接点播</span>
+        <button id="btnRefreshMedia" class="btn-link" style="padding:2px 8px; font-size:11px;">🔄 刷新列表</button>
+      </div>
+      <ul class="media-list" id="mediaList">
+        <li style="color:var(--text-muted); padding:10px;">正在加载媒体库...</li>
+      </ul>
+    </div>
+  </main>
+
+  <footer>
+    <p>© 2026 VisualCast 展馆可视化智能播控全能中枢 | 全系原画 1080P 硬件加速</p>
+  </footer>
+
+  <script>
+    async function sendCmd(command, params = {}) {
+      try {
+        await fetch('/api/player/command', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ command, params })
+        });
+      } catch (e) {
+        console.warn('发送指令失败:', e);
+      }
+    }
+
+    // 播放控制按键绑定
+    document.getElementById('btnPlay').onclick = () => sendCmd('TOGGLE_PLAY');
+    document.getElementById('btnStop').onclick = () => sendCmd('STOP');
+    document.getElementById('btnBlackout').onclick = () => sendCmd('BLACKOUT');
+    document.getElementById('btnPrev').onclick = () => sendCmd('PREV');
+    document.getElementById('btnNext').onclick = () => sendCmd('NEXT');
+    document.getElementById('btnFreeze').onclick = () => sendCmd('FREEZE');
+
+    // 音量调节
+    const volRange = document.getElementById('volumeRange');
+    const volText = document.getElementById('volText');
+    volRange.oninput = () => {
+      volText.textContent = `${volRange.value}%`;
+    };
+    volRange.onchange = () => {
+      sendCmd('SET_VOLUME', { volume: parseInt(volRange.value, 10) });
+    };
+
+    // 加载素材库
+    async function loadMedia() {
+      const listEl = document.getElementById('mediaList');
+      try {
+        const res = await fetch('/api/media');
+        const data = await res.json();
+        const items = data.items || data.files || [];
+        if (!items || items.length === 0) {
+          listEl.innerHTML = '<li style="color:#64748b; padding:10px;">素材库为空，请在后台上传</li>';
+          return;
+        }
+        listEl.innerHTML = '';
+        items.forEach(item => {
+          const name = typeof item === 'string' ? item : (item.name || item.filename);
+          const li = document.createElement('li');
+          li.className = 'media-item';
+          li.innerHTML = `<span>🎬 ${name}</span><span style="font-size:11px; color:#38bdf8;">点播 ▶</span>`;
+          li.onclick = () => {
+            sendCmd('PLAY_MEDIA', { media: name, filename: name });
+          };
+          listEl.appendChild(li);
+        });
+      } catch (e) {
+        listEl.innerHTML = '<li style="color:#ef4444; padding:10px;">加载素材库失败</li>';
+      }
+    }
+
+    // 轮询大屏状态
+    async function syncStatus() {
+      try {
+        const res = await fetch('/api/player/status');
+        const data = await res.json();
+        if (data.status === 'ok' && data.player) {
+          const p = data.player;
+          document.getElementById('playerStatus').textContent = p.state || '在线';
+          document.getElementById('playerStatus').style.color = (p.state === 'PLAYING') ? '#10b981' : '#38bdf8';
+          document.getElementById('currentMedia').textContent = p.current_media || 'VisualCast 就绪';
+          if (p.volume !== undefined && document.activeElement !== volRange) {
+            volRange.value = p.volume;
+            volText.textContent = `${p.volume}%`;
+          }
+        }
+      } catch (e) {}
+      setTimeout(syncStatus, 1500);
+    }
+
+    document.getElementById('btnRefreshMedia').onclick = loadMedia;
+
+    loadMedia();
+    syncStatus();
+  </script>
+</body>
+</html>

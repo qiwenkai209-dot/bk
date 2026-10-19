@@ -1,0 +1,6 @@
+{
+  "enabled": true,
+  "salt": "db80e8dbdfa9231f",
+  "password_hash": "a7d06e93c4c5883ff40b94c3879e94c08558ef42651c68e53aa9af72470fe3d0",
+  "session_expire_hours": 168
+}

@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>VisualCast 极简无线投屏</title>
+  <link rel="stylesheet" href="/static/cast.css">
+  <link rel="icon" href="/assets/favicon.ico" type="image/x-icon">
+</head>
+<body>
+  <div class="cast-container">
+    
+    <!-- 顶部状态栏 -->
+    <header class="cast-header">
+      <div class="brand-area">
+        <span class="live-pulse"></span>
+        <div class="brand-text">
+          <h1 class="brand-title">VisualCast 投屏</h1>
+          <span class="brand-subtitle">展厅智能无线投送中枢</span>
+        </div>
+      </div>
+      <div id="cast-conn-badge" class="conn-badge checking">检查大屏...</div>
+    </header>
+
+    <!-- 主控引导卡片 (未投屏状态) -->
+    <section id="panel-idle" class="cast-card">
+      <div class="card-hero-icon">📡</div>
+      <h2 class="card-title">无线屏幕镜像 & 多媒体投送</h2>
+      <p class="card-desc" id="cast-device-tip">支持手机相册照片/视频即选即播，电脑端支持极低延迟桌面共享</p>
+
+      <!-- 选项 A：手机相册 / 本地视频、照片、PDF 瞬时直投 (移动端置顶推荐) -->
+      <div class="action-block" id="block-file-cast">
+        <label for="input-cast-file" class="btn-hero-cast file-hero-btn" id="label-file-cast">
+          <span class="btn-icon">📁</span>
+          <div class="btn-texts">
+            <span class="btn-main-text" id="file-cast-main-text">投送手机相册 / 本地视频 / 照片 / 文档</span>
+            <span class="btn-sub-text">无需客户端 · 即选即上屏 · 支持全格式高清放映</span>
+          </div>
+        </label>
+        <input type="file" id="input-cast-file" accept="video/*,image/*,.pdf,.ppt,.pptx" style="display:none;">
+      </div>
+
+      <!-- 选项 B：电脑端桌面屏幕镜像 (WebRTC) -->
+      <div class="action-block" id="block-screen-cast">
+        <button id="btn-start-screen-cast" class="btn-secondary-cast screen-hero-btn">
+          <span class="btn-icon">🖥️</span>
+          <div class="btn-texts">
+            <span class="btn-main-text">共享电脑屏幕 (桌面 / 窗口 / PPT)</span>
+            <span class="btn-sub-text">极低延迟实时镜像 · 建议使用电脑 Chrome/Edge 浏览器</span>
+          </div>
+        </button>
+
+        <div class="cast-opts-row" id="cast-opts-row">
+          <label class="opt-item">
+            <span>画质:</span>
+            <select id="select-resolution" class="opt-select">
+              <option value="1080p">1080P 全高清</option>
+              <option value="720p">720P 极速低延迟</option>
+              <option value="4k">4K 超清</option>
+            </select>
+          </label>
+          <label class="opt-item checkbox-item">
+            <input type="checkbox" id="chk-audio" checked>
+            <span>采集声音</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- 电脑端安全上下文配置指引卡片 (默认隐藏，仅在非安全上下文点击桌面共享时弹出引导) -->
+      <div id="pc-secure-tip" class="secure-tip-box hidden" style="margin-top:12px; padding:12px 14px; background:rgba(30,41,59,0.7); border:1px solid rgba(56,189,248,0.3); border-radius:10px; font-size:12px; color:#cbd5e1; text-align:left;">
+        <div style="font-weight:700; color:#38bdf8; margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+          <span>💡 电脑端免证书开启桌面录屏技巧:</span>
+        </div>
+        <div>现代浏览器安全策略要求屏幕录制在受信任环境运行。您可以：</div>
+        <div style="margin-top:6px; padding:6px 10px; background:rgba(0,0,0,0.4); border-radius:6px; font-family:monospace; color:#00f0ff; word-break:break-all;" id="chrome-flags-cmd">
+          chrome://flags/#unsafely-treat-insecure-origin-as-secure
+        </div>
+        <div style="margin-top:6px; color:#94a3b8; font-size:11px;">
+          将上述链接复制到 Chrome/Edge 地址栏打开，将本服务器地址填入并设为 Enabled 重启即可畅享桌面镜像；或直接使用上方的【投送文件】一键上屏。
+        </div>
+      </div>
+
+      <!-- 状态与进度提示区 -->
+      <div id="cast-notice" class="cast-notice hidden"></div>
+    </section>
+
+    <!-- 投屏进行中控制面板 (投屏激活状态) -->
+    <section id="panel-active" class="cast-card active-card hidden">
+      <div class="active-pulse-badge">
+        <span class="pulse-dot"></span>
+        <span>大屏正在全屏放映您的画面</span>
+      </div>
+
+      <div class="preview-box">
+        <video id="local-preview" autoplay playsinline muted></video>
+        <div class="preview-overlay">
+          <span id="preview-stream-info">1080P · 60fps</span>
+          <span id="preview-timer">00:00:00</span>
+        </div>
+      </div>
+
+      <div class="active-actions-row">
+        <button id="btn-stop-cast" class="btn-danger-large">
+          <span>⏹</span>
+          <span>结束屏幕共享</span>
+        </button>
+      </div>
+
+      <div class="quick-tips">
+        提示：您也可以直接在浏览器或系统底部的“停止共享”浮条中断开投屏。
+      </div>
+    </section>
+
+    <!-- 底部状态说明：纯净安全，无任何后台入口 -->
+    <footer class="cast-footer">
+      <span>VisualCast 无线屏幕镜像呈现系统 · 局域网点对点直连</span>
+    </footer>
+
+  </div>
+
+  <script src="/static/cast.js"></script>
+</body>
+</html>

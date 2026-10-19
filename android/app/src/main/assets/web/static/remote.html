@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>VisualCast 讲解员掌上手牌</title>
+  <link rel="stylesheet" href="/static/remote.css">
+</head>
+<body>
+  <div class="remote-container">
+    <!-- 顶部状态栏 -->
+    <header class="remote-header">
+      <div class="header-left">
+        <div class="brand-badge">
+          <span class="live-dot"></span>
+          <span class="brand-title">VisualCast 手牌</span>
+        </div>
+        <div id="conn-status" class="conn-badge online">大屏在线</div>
+      </div>
+      <div class="header-right">
+        <button id="btn-remote-logout" class="btn-logout-top" title="安全退出讲解员手牌">
+          <span>⎋</span>
+          <span>退出</span>
+        </button>
+        <button id="btn-return-idle" class="btn-idle-top" title="一键切回待机背景片">
+          <span class="idle-icon">🏠</span>
+          <span>一键回待机</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- 当前大屏播出状态大卡片 -->
+    <section class="current-card">
+      <div class="card-top-row">
+        <span id="mode-badge" class="mode-badge attract">待机中</span>
+        <span id="media-type-badge" class="type-badge">VIDEO</span>
+      </div>
+      <div id="current-title" class="current-media-title">正在载入大屏状态...</div>
+      
+      <!-- 进度条 -->
+      <div class="progress-wrap" id="progress-wrap">
+        <div class="progress-bar-bg">
+          <div id="progress-bar-fill" class="progress-bar-fill" style="width: 0%;"></div>
+        </div>
+        <div class="timecode-row">
+          <span id="tc-current">00:00</span>
+          <span id="tc-total">00:00</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 掌上核心播控台 -->
+    <section class="action-console">
+      <!-- 视频/音频主控按键组 (手持三联大按键: 上一个 + 播放/暂停 + 下一个) -->
+      <div id="ctrl-video" class="ctrl-group">
+        <div class="hero-play-row">
+          <button id="btn-remote-prev" class="btn-hero-side" title="切上一个素材">
+            <span class="hero-icon">⏮</span>
+            <span class="hero-label">上一个</span>
+          </button>
+          <button id="btn-play-pause" class="btn-hero-play" title="播放/暂停">
+            <span id="play-icon">▶</span>
+            <span id="play-text">播放</span>
+          </button>
+          <button id="btn-remote-next" class="btn-hero-side" title="切下一个素材">
+            <span class="hero-icon">⏭</span>
+            <span class="hero-label">下一个</span>
+          </button>
+        </div>
+        <div class="sub-btn-grid">
+          <button id="btn-seek-back" class="btn-action">⏪ 快退 10s</button>
+          <button id="btn-seek-fwd" class="btn-action">⏩ 快进 10s</button>
+          <button id="btn-remote-loop" class="btn-action">🔁 循环播放</button>
+          <button id="btn-remote-scale" class="btn-action">⛶ 全屏拉伸</button>
+          <button id="btn-remote-sleep" class="btn-action" style="border-color:#38bdf8; color:#38bdf8;">🌙 大屏休眠</button>
+          <button id="btn-blackout" class="btn-action">⬛ 黑场遮罩</button>
+          <button id="btn-stop" class="btn-action danger">⏹ 停止归零</button>
+        </div>
+      </div>
+
+      <!-- 文档 / PPT / 图片按键组 -->
+      <div id="ctrl-doc" class="ctrl-group hidden">
+        <div class="doc-btn-grid">
+          <button id="btn-doc-prev" class="btn-doc-nav">◀ 上一页 (PageUp)</button>
+          <button id="btn-doc-next" class="btn-doc-nav primary">下一页 (PageDown) ▶</button>
+        </div>
+        <button id="btn-doc-exit" class="btn-action danger" style="margin-top: 10px; width: 100%;">⎋ 退出演示放映</button>
+      </div>
+
+      <!-- 音量微调滑块 (带 + / - 步进按键) -->
+      <div class="volume-box">
+        <button id="btn-vol-down" class="btn-vol-step" title="音量 -5%">🔉-</button>
+        <span class="vol-icon" id="btn-mute-toggle" title="静音切换">🔊</span>
+        <input type="range" id="vol-slider" min="0" max="100" value="85" class="vol-range" />
+        <span id="vol-text" class="vol-text">85%</span>
+        <button id="btn-vol-up" class="btn-vol-step" title="音量 +5%">🔊+</button>
+      </div>
+    </section>
+
+    <!-- 展项节目点播清单 -->
+    <section class="playlist-section">
+      <div class="section-head">
+        <h2 class="section-title">展项节目点播</h2>
+        <span id="media-count" class="media-count-badge">0 项</span>
+      </div>
+
+      <!-- 子文件夹分类快速筛选 -->
+      <div class="remote-folder-bar" style="margin: 6px 0 10px 0; display: flex; align-items: center; gap: 8px;">
+        <select id="remote-folder-select" style="flex: 1; padding: 7px 10px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.15); border-radius: 8px; color: #fff; font-size: 13px; outline: none;">
+          <option value="ALL">📁 全部素材目录</option>
+        </select>
+        <button id="btn-remote-play-folder" style="padding: 7px 12px; background: rgba(0,240,255,0.15); border: 1px solid rgba(0,240,255,0.4); color: #00f0ff; border-radius: 8px; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap;">▶ 循环此目录</button>
+      </div>
+
+      <!-- 分类 Tab -->
+      <div class="category-tabs" id="cat-tabs">
+        <button class="cat-tab active" data-cat="all">全部</button>
+        <button class="cat-tab" data-cat="video">视频</button>
+        <button class="cat-tab" data-cat="image">图片</button>
+        <button class="cat-tab" data-cat="doc">文档/PPT</button>
+        <button class="cat-tab" data-cat="web">网页/H5</button>
+      </div>
+
+      <!-- 素材卡片列表 -->
+      <div class="media-list" id="remote-media-list">
+        <div class="loading-hint">正在拉取展项素材...</div>
+      </div>
+    </section>
+  </div>
+
+  <!-- 讲解员手牌登录鉴权模态框 (要求输入账号与密码) -->
+  <div id="remote-auth-modal" class="auth-modal-overlay hidden">
+    <div class="auth-modal-card">
+      <div class="auth-modal-header">
+        <div class="auth-icon-badge">🔐</div>
+        <h3 class="auth-modal-title">讲解员手牌认证</h3>
+        <p class="auth-modal-desc">请输入账号与播控密码以获取手牌操作权限</p>
+      </div>
+      <form id="remote-login-form" class="auth-modal-body">
+        <div class="auth-field-group">
+          <label class="auth-field-label" for="remote-username">讲解员工号 / 账号</label>
+          <input type="text" id="remote-username" class="auth-field-input" placeholder="输入账号 (默认: admin)" value="admin" autocomplete="username" required />
+        </div>
+        <div class="auth-field-group">
+          <label class="auth-field-label" for="remote-password">播控密码</label>
+          <input type="password" id="remote-password" class="auth-field-input" placeholder="请输入密码" autocomplete="current-password" required />
+        </div>
+        <div id="remote-login-error" class="auth-error-hint hidden">密码错误，请重新输入</div>
+        <button type="submit" id="btn-remote-login-submit" class="auth-submit-btn">验证并进入手牌</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="/static/remote.js"></script>
+</body>
+</html>

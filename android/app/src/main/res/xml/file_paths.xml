@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 覆盖 SD 卡公共根目录 (/storage/emulated/0/) -->
+    <external-path name="external_storage" path="." />
+    <!-- 覆盖应用外部专属存储 (/sdcard/Android/data/com.visualcast.player/files/) -->
+    <external-files-path name="external_files" path="." />
+    <!-- 覆盖应用内部私有存储 (/data/user/0/com.visualcast.player/files/) -->
+    <files-path name="internal_files" path="." />
+    <!-- 覆盖应用内部缓存目录 (/data/user/0/com.visualcast.player/cache/) -->
+    <cache-path name="internal_cache" path="." />
+    <!-- 覆盖应用外部缓存目录 -->
+    <external-cache-path name="external_cache" path="." />
+    <!-- 覆盖整个 Linux 根路径 (兼容外接 U 盘 /mnt/media_rw, /storage/XXXX-XXXX) -->
+    <root-path name="root" path="." />
+</paths>
