@@ -1,8 +1,11 @@
 # VisualCast 展馆可视化智能播控系统 · 工程文件结构与交付指南
 
+[![VisualCast CI/CD](https://github.com/qiwenkai209-dot/bk/actions/workflows/build.yml/badge.svg)](https://github.com/qiwenkai209-dot/bk/actions/workflows/build.yml)
+
 > **系统定位**：工业级全能展厅智能播控中枢  
 > **最新版本**：VisualCast Pro (旗舰工业级)  
 > **运行环境**：Windows 10 / Windows 11 (64位) 全兼容，**单文件绿色免安装 Python 环境**  
+> **云端构建**：已接入 GitHub Actions 自动化编译打包，随时在 [Actions 页面](https://github.com/qiwenkai209-dot/bk/actions) 下载最新全套 APK 与 EXE 产物。
 
 ---
 
