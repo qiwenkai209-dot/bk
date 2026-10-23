@@ -7,19 +7,36 @@ import shutil
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 PROJECT_DIR = os.path.join(BASE_DIR, "android_keygen")
 
-JAVA_HOME = r"C:\PROGRA~1\Eclipse Adoptium\jdk-17.0.20.101-hotspot"
-ANDROID_HOME = r"C:\Users\mac\AppData\Local\Android\Sdk"
-GRADLE_BAT = r"C:\Users\mac\.gradle\wrapper\dists\gradle-8.9-bin\90cnw93cvbtalezasaz0blq0a\gradle-8.9\bin\gradle.bat"
+JAVA_HOME = (os.getenv('JAVA_HOME') or '').strip().rstrip('\\').rstrip('/')
+if not JAVA_HOME and os.path.isdir(r'C:\PROGRA~1\Eclipse Adoptium\jdk-17.0.20.101-hotspot'):
+    JAVA_HOME = r'C:\PROGRA~1\Eclipse Adoptium\jdk-17.0.20.101-hotspot'
 
-if not os.path.exists(GRADLE_BAT):
-    print(f"[!] 找不到 Gradle: {GRADLE_BAT}")
+ANDROID_HOME = (os.getenv('ANDROID_HOME') or '').strip().rstrip('\\').rstrip('/')
+if not ANDROID_HOME:
+    default_sdk = os.path.expanduser(r'~\AppData\Local\Android\Sdk')
+    if os.path.isdir(default_sdk):
+        ANDROID_HOME = default_sdk
+
+possible_gradles = [
+    os.path.join(PROJECT_DIR, 'gradlew.bat'),
+    os.path.join(PROJECT_DIR, 'gradlew'),
+    r"C:\Users\mac\.gradle\wrapper\dists\gradle-8.9-bin\90cnw93cvbtalezasaz0blq0a\gradle-8.9\bin\gradle.bat",
+    shutil.which('gradle.bat') or '',
+    shutil.which('gradle') or ''
+]
+GRADLE_BAT = next((g for g in possible_gradles if g and os.path.isfile(g)), None)
+
+if not GRADLE_BAT or not os.path.exists(GRADLE_BAT):
+    print(f"[!] 找不到 Gradle 或 gradlew.bat: {GRADLE_BAT}")
     sys.exit(1)
 
 env = os.environ.copy()
-env["JAVA_HOME"] = JAVA_HOME
-env["ANDROID_HOME"] = ANDROID_HOME
-env["ANDROID_SDK_ROOT"] = ANDROID_HOME
-env["PATH"] = os.path.join(JAVA_HOME, "bin") + os.path.pathsep + env.get("PATH", "")
+if JAVA_HOME:
+    env["JAVA_HOME"] = JAVA_HOME
+    env["PATH"] = os.path.join(JAVA_HOME, "bin") + os.path.pathsep + env.get("PATH", "")
+if ANDROID_HOME:
+    env["ANDROID_HOME"] = ANDROID_HOME
+    env["ANDROID_SDK_ROOT"] = ANDROID_HOME
 
 print("========================================================")
 print("       国文创加密机 - Android APK 原生编译工具")

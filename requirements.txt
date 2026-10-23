@@ -1,0 +1,6 @@
+bottle>=0.12.25
+pyserial>=3.5
+psutil>=5.9.0
+Pillow>=9.0.0
+pyinstaller>=6.0.0
+pywin32>=306; sys_platform == 'win32'
