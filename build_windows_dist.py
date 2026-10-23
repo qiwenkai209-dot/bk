@@ -10,6 +10,13 @@ VisualCast Windows 全套独立程序云端/本地统一打包脚本
 
 import os
 import sys
+
+# 强制 Python 标准输出和错误流为 UTF-8，彻底杜绝 Windows 默认 cp1252/cp936 编码崩溃
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8')
+
 import subprocess
 import shutil
 
@@ -49,8 +56,11 @@ for target in build_targets:
         sys.exit(1)
 
     print(f"\n[*] 正在编译: {target['spec']} ...")
+    run_env = os.environ.copy()
+    run_env["PYTHONUTF8"] = "1"
+    run_env["PYTHONIOENCODING"] = "utf-8"
     cmd = [sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", spec_path]
-    res = subprocess.run(cmd, cwd=BASE_DIR)
+    res = subprocess.run(cmd, cwd=BASE_DIR, env=run_env)
     if res.returncode != 0:
         print(f"[×] 编译失败: {target['spec']} (退出码: {res.returncode})")
         sys.exit(res.returncode)

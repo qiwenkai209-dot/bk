@@ -91,6 +91,9 @@ jobs:
           pip install -r requirements.txt
 
       - name: Build All Windows Executables (VisualCast, Keygen, Fleet Hub)
+        env:
+          PYTHONUTF8: '1'
+          PYTHONIOENCODING: 'utf-8'
         run: |
           python build_windows_dist.py
 
