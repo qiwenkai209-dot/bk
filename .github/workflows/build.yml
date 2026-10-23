@@ -57,9 +57,12 @@ jobs:
           mkdir -p output/android
           if [ -f "android/app/build/outputs/apk/debug/app-debug.apk" ]; then
             cp android/app/build/outputs/apk/debug/app-debug.apk output/android/VisualCast.apk
+            cp android/app/build/outputs/apk/debug/app-debug.apk "output/android/VisualCast_商显大屏播控.apk"
           fi
           if [ -f "android_keygen/app/build/outputs/apk/debug/app-debug.apk" ]; then
             cp android_keygen/app/build/outputs/apk/debug/app-debug.apk output/android/GuoWenChuang_Keygen.apk
+            cp android_keygen/app/build/outputs/apk/debug/app-debug.apk "output/android/国文创加密机.apk"
+            cp android_keygen/app/build/outputs/apk/debug/app-debug.apk "output/android/加密机.apk"
           fi
 
       - name: Upload Android APKs
@@ -87,25 +90,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Build VisualCast Main Executable
+      - name: Build All Windows Executables (VisualCast, Keygen, Fleet Hub)
         run: |
-          pyinstaller --noconfirm --clean VisualCast.spec
-
-      - name: Build GuoWenChuang Keygen Executable
-        run: |
-          pyinstaller --noconfirm --clean "国文创加密机.spec"
-
-      - name: Build Fleet Hub Executable
-        run: |
-          pyinstaller --noconfirm --clean "局域网大屏在线设备中枢.spec"
-
-      - name: Collect Windows Executables
-        shell: pwsh
-        run: |
-          New-Item -ItemType Directory -Force -Path output\windows
-          if (Test-Path "dist\VisualCast.exe") { Copy-Item "dist\VisualCast.exe" "output\windows\" }
-          if (Test-Path "dist\国文创加密机.exe") { Copy-Item "dist\国文创加密机.exe" "output\windows\" }
-          if (Test-Path "dist\局域网大屏在线设备中枢.exe") { Copy-Item "dist\局域网大屏在线设备中枢.exe" "output\windows\" }
+          python build_windows_dist.py
 
       - name: Upload Windows Executables
         uses: actions/upload-artifact@v4
