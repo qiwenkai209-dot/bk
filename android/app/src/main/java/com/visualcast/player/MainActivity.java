@@ -104,7 +104,7 @@ public class MainActivity extends AppCompatActivity {
                 if (!mName.endsWith(".ppt") && !mName.endsWith(".pptx") && !mName.endsWith(".pps") && !mName.endsWith(".ppsx") && !mName.endsWith(".pdf") && !mName.endsWith(".doc") && !mName.endsWith(".docx")) {
                     isSwitchToOther = true;
                 }
-            } else if ("RETURN_TO_STANDBY".equals(cUpper) || "RETURN_TO_IDLE".equals(cUpper) || "REFRESH_LIBRARY_AND_PLAY".equals(cUpper) || "DOC_EXIT".equals(cUpper) || "STOP".equals(cUpper) || "WAKEUP".equals(cUpper)) {
+            } else if ("RETURN_TO_STANDBY".equals(cUpper) || "RETURN_TO_IDLE".equals(cUpper) || "REFRESH_LIBRARY_AND_PLAY".equals(cUpper) || "DOC_EXIT".equals(cUpper) || "WAKEUP".equals(cUpper)) {
                 isSwitchToOther = true;
             }
 
@@ -727,7 +727,7 @@ public class MainActivity extends AppCompatActivity {
             return true;
         } else if (keyCode == KeyEvent.KEYCODE_MEDIA_STOP) {
             if (webView != null) {
-                webView.evaluateJavascript("if (typeof stopMedia === 'function') stopMedia(); else if (typeof applyCommand === 'function') applyCommand('STOP');", null);
+                webView.evaluateJavascript("if (typeof pauseCurrentMedia === 'function') pauseCurrentMedia(); else if (typeof applyCommand === 'function') applyCommand('PAUSE');", null);
             }
             return true;
         } else if (keyCode == KeyEvent.KEYCODE_PAGE_DOWN || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_MEDIA_NEXT) {

@@ -601,8 +601,8 @@
     }
 
     if (!force && loopMode === 'PLAY_ONCE') {
-      console.log('[VisualCast] 单个播放一次模式播放完毕，停止放映并定格');
-      stopMedia();
+      console.log('[VisualCast] 单个播放一次模式播放完毕，平稳暂停放映');
+      pauseCurrentMedia();
       return;
     }
 
@@ -1992,14 +1992,12 @@ function applyCommand(cmd, directParams) {
         playCurrentMedia();
         break;
       case 'PAUSE':
+      case 'STOP':
         pauseCurrentMedia();
         break;
       case 'TOGGLE_PLAY':
       case 'PLAY_PAUSE':
         togglePlayPause();
-        break;
-      case 'STOP':
-        stopMedia();
         break;
       case 'SEEK':
         if (params.time !== undefined) {
@@ -2711,7 +2709,7 @@ function applyCommand(cmd, directParams) {
   // 9. 指令拉取与状态上报合一通道 (250ms 黄金周期，兼顾毫秒级中控响应与极低系统负载)
   async function syncLoop() {
     try {
-      let state = 'STOPPED';
+      let state = 'PAUSED';
       let currTime = 0;
       let dur = 0;
       let vol = Math.round(activeVideoEl.volume * 100);

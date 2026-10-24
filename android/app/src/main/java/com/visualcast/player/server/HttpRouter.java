@@ -339,7 +339,7 @@ public class HttpRouter {
                                 playerState.put("state", "PLAYING");
                             } catch (Exception ignored) {}
                         }
-                    } else if ("PAUSE".equals(cmd) || "STOP".equals(cmd)) {
+                    } else if ("PAUSE".equals(cmd)) {
                         try {
                             playerState.put("state", "PAUSED");
                         } catch (Exception ignored) {}
@@ -838,7 +838,7 @@ public class HttpRouter {
                 } else if (soap.contains("Stop")) {
                     resAction = "StopResponse";
                     if (com.visualcast.player.MainActivity.instance != null) {
-                        com.visualcast.player.MainActivity.instance.dispatchCommandToWeb("STOP", new JSONObject());
+                        com.visualcast.player.MainActivity.instance.dispatchCommandToWeb("PAUSE", new JSONObject());
                     }
                 } else if (soap.contains("GetTransportInfo")) {
                     resAction = "GetTransportInfoResponse";
@@ -1091,9 +1091,9 @@ public class HttpRouter {
                 return HttpResponse.json("{\"status\":\"ok\",\"message\":\"已成功退出文档放映并切回 VisualCast 主播控视窗\"}");
             }
             if ("/api/player/stop".equals(path) && "POST".equals(method)) {
-                pushCommand("STOP", new JSONObject());
-                try { playerState.put("state", "STOPPED"); } catch (Exception ignored) {}
-                return HttpResponse.json("{\"status\":\"ok\",\"message\":\"停止指令已下发\"}");
+                pushCommand("PAUSE", new JSONObject());
+                try { playerState.put("state", "PAUSED"); } catch (Exception ignored) {}
+                return HttpResponse.json("{\"status\":\"ok\",\"message\":\"暂停指令已下发\"}");
             }
             if ("/api/player/pause".equals(path) && "POST".equals(method)) {
                 pushCommand("PAUSE", new JSONObject());

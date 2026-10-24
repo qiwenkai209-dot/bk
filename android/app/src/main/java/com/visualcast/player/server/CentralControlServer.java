@@ -154,8 +154,9 @@ public class CentralControlServer {
             } else if ("STOP".equals(c)) {
                 if (act != null) {
                     act.bringToFrontAndCloseDoc();
-                    act.dispatchCommandToWeb("STOP", new JSONObject());
+                    act.dispatchCommandToWeb("PAUSE", new JSONObject());
                 }
+                if (HttpRouter.getInstance() != null) HttpRouter.getInstance().pushCommand("PAUSE", new JSONObject());
             } else if ("NEXT".equals(c)) {
                 if (act != null) act.dispatchCommandToWeb("NEXT", new JSONObject());
                 if (HttpRouter.getInstance() != null) HttpRouter.getInstance().pushCommand("NEXT", new JSONObject());
