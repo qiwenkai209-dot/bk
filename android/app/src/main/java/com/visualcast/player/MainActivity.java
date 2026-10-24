@@ -545,9 +545,14 @@ public class MainActivity extends AppCompatActivity {
 
     public void triggerSleepTransition(final boolean sleep) {
         if (sleep) {
-            // 按用户要求：彻底删除待机、休眠功能，保留按钮，商显大屏保持常亮放映
-            android.util.Log.i("VisualCast", "待机休眠功能已删除，商显大屏保持常亮放映");
-            isScreenAsleep = false;
+            isScreenAsleep = true;
+            com.visualcast.player.server.HttpRouter.updateBlackoutState(true);
+            runOnUiThread(() -> {
+                if (webView != null) {
+                    String js = "try { if (window.applyCommand) window.applyCommand('STOP'); if (window.setBlackout) window.setBlackout(true); if (window.applyCommand) window.applyCommand('SLEEP'); } catch(e){}";
+                    webView.evaluateJavascript(js, null);
+                }
+            });
             return;
         }
         isScreenAsleep = false;

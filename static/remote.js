@@ -276,6 +276,22 @@
     isBlackout = !!p.blackout;
     btnBlackout.textContent = isBlackout ? '⬜ 解除黑场' : '⬛ 黑场遮罩';
 
+    // 待机与唤醒互锁状态同步
+    const sleepBtn = document.getElementById('btn-remote-sleep');
+    if (sleepBtn) {
+      if (p.is_sleeping) {
+        isRemoteSleeping = true;
+        sleepBtn.textContent = '☀️ 唤醒';
+        sleepBtn.style.color = '#34d399';
+        sleepBtn.style.borderColor = 'rgba(52, 211, 153, 0.6)';
+      } else {
+        isRemoteSleeping = false;
+        sleepBtn.textContent = '🌙 待机';
+        sleepBtn.style.color = '#38bdf8';
+        sleepBtn.style.borderColor = '#38bdf8';
+      }
+    }
+
     // 四种播放循环模式状态同步
     if (p.loop_mode) {
       currentRemoteLoopMode = p.loop_mode;
@@ -480,7 +496,7 @@
     sendCommand('BLACKOUT', { blackout: !isBlackout });
   });
 
-  // 大屏深度休眠 / 唤醒控制 (已彻底删除唤醒功能，保持大屏常亮放映)
+  // 待机与唤醒互锁控制
   const btnRemoteSleep = document.getElementById('btn-remote-sleep');
   let isRemoteSleeping = false;
   if (btnRemoteSleep) {
@@ -488,19 +504,27 @@
       const targetSleep = !isRemoteSleeping;
       try {
         if (targetSleep) {
-          await fetch('/api/system/sleep', { method: 'POST' }).catch(() => {});
+          // 待机：执行停止 + 黑场
           isRemoteSleeping = true;
           btnRemoteSleep.textContent = '☀️ 唤醒';
           btnRemoteSleep.style.color = '#34d399';
           btnRemoteSleep.style.borderColor = 'rgba(52, 211, 153, 0.6)';
+          await sendCommand('STOP');
+          await sendCommand('BLACKOUT', { blackout: true });
+          await fetch('/api/system/sleep', { method: 'POST' }).catch(() => {});
         } else {
-          // 删除唤醒功能，仅重置按钮显示
+          // 唤醒：解除黑场 + 播放待机素材
           isRemoteSleeping = false;
-          btnRemoteSleep.textContent = '🌙 大屏休眠';
+          btnRemoteSleep.textContent = '🌙 待机';
           btnRemoteSleep.style.color = '#38bdf8';
           btnRemoteSleep.style.borderColor = '#38bdf8';
+          await sendCommand('BLACKOUT', { blackout: false });
+          await sendCommand('RETURN_TO_STANDBY');
+          await fetch('/api/system/wakeup', { method: 'POST' }).catch(() => {});
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error('待机/唤醒切换异常:', e);
+      }
     });
   }
 

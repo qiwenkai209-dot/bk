@@ -753,12 +753,7 @@
       try { mainAudioEl.currentTime = 0; } catch (e) {}
     }
 
-    // 2. 清除黑场、定格与计时器，关闭文档
-    setBlackout(false);
-    dismissFreezeCanvas();
-    if (imageTimer) { clearTimeout(imageTimer); imageTimer = null; }
-    if (docTimer) { clearTimeout(docTimer); docTimer = null; }
-    fetch('/api/player/close_ppt', { method: 'POST' }).catch(() => {});
+    // 2. (已按用户要求取消：不执行关闭黑场、解除定格、清除定时器、关闭文档)
 
     // 3. 寻找“图片素材文件夹的第一个图片”
     let targetImage = null;
@@ -2013,16 +2008,20 @@ function applyCommand(cmd, directParams) {
       case 'SLEEP':
       case 'SHUTDOWN':
       case 'POWEROFF':
-        // 用户要求：彻底删除待机、关机休眠功能，大屏保持常亮放映
-        console.log('[VisualCast] 收到待机/关机指令，按需求旁路，保持常亮放映');
+        console.log('[VisualCast] 收到待机指令：执行停止放映并开启黑场');
+        isSystemSleeping = true;
+        isExplicitlyStopped = true;
+        stopMedia();
+        setBlackout(true);
         break;
       case 'WAKEUP':
       case 'BOOT':
       case 'POWERON':
+        console.log('[VisualCast] 收到唤醒指令：解除黑场并播放待机素材');
         isSystemSleeping = false;
         isExplicitlyStopped = false;
-        isBlackout = false;
-        triggerSystemPowerOn();
+        setBlackout(false);
+        returnToStandby(true);
         break;
       case 'REFRESH_STREAM':
       case 'RELOAD_CURRENT':
@@ -2278,6 +2277,8 @@ function applyCommand(cmd, directParams) {
     if (currentPlaylist.length > 0) {
       currentPlayIndex = 0;
       switchMedia(currentPlaylist[0], true, true, true);
+    } else if (idleMedia) {
+      switchMedia(idleMedia, true, true, true);
     } else if (cachedMediaList && cachedMediaList.length > 0) {
       currentPlayIndex = 0;
       switchMedia(cachedMediaList[0], true, true, true);
@@ -2354,18 +2355,20 @@ function applyCommand(cmd, directParams) {
 
   let powerOffTimer = null;
   function triggerSystemPowerOff() {
-    console.log('[VisualCast] 待机/休眠功能已删除，商显大屏保持24小时常亮放映');
-    // 用户明确要求：彻底删除待机、休眠功能，保留按钮；绝不黑屏，绝不停播，大屏始终常亮放映
-    isSystemSleeping = false;
-    isExplicitlyStopped = false;
-    isBlackout = false;
-    return;
+    console.log('[VisualCast] 执行待机休眠：停止放映并开启黑场');
+    isSystemSleeping = true;
+    isExplicitlyStopped = true;
+    stopMedia();
+    setBlackout(true);
   }
   window.triggerSystemPowerOff = triggerSystemPowerOff;
 
   function triggerSystemPowerOn() {
-    console.log('[VisualCast] 唤醒功能已删除，大屏始终保持24小时常亮放映');
-    return;
+    console.log('[VisualCast] 执行唤醒：解除黑场并播放待机素材');
+    isSystemSleeping = false;
+    isExplicitlyStopped = false;
+    setBlackout(false);
+    returnToStandby(true);
   }
   window.triggerSystemPowerOn = triggerSystemPowerOn;
 
