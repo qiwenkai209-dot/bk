@@ -147,8 +147,10 @@ public class CentralControlServer {
             // 1. 基础播放控制
             if ("PLAY".equals(c) || "RESUME".equals(c)) {
                 if (act != null) act.dispatchCommandToWeb("PLAY", new JSONObject());
+                if (HttpRouter.getInstance() != null) HttpRouter.getInstance().pushCommand("PLAY", new JSONObject());
             } else if ("PAUSE".equals(c)) {
                 if (act != null) act.dispatchCommandToWeb("PAUSE", new JSONObject());
+                if (HttpRouter.getInstance() != null) HttpRouter.getInstance().pushCommand("PAUSE", new JSONObject());
             } else if ("STOP".equals(c)) {
                 if (act != null) {
                     act.bringToFrontAndCloseDoc();
@@ -156,8 +158,10 @@ public class CentralControlServer {
                 }
             } else if ("NEXT".equals(c)) {
                 if (act != null) act.dispatchCommandToWeb("NEXT", new JSONObject());
+                if (HttpRouter.getInstance() != null) HttpRouter.getInstance().pushCommand("NEXT", new JSONObject());
             } else if ("PREV".equals(c)) {
                 if (act != null) act.dispatchCommandToWeb("PREV", new JSONObject());
+                if (HttpRouter.getInstance() != null) HttpRouter.getInstance().pushCommand("PREV", new JSONObject());
 
             // 1.1 文档/幻灯片上一页、下一页与退出
             } else if ("DOC_NEXT".equals(c) || "PPT_NEXT".equals(c) || "PAGE_DOWN".equals(c)) {

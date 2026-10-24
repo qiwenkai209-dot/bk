@@ -519,12 +519,14 @@
       console.log('[VisualCast] 当前处于待机休眠黑屏态，坚决拦截自动切曲');
       return;
     }
-    if (isExplicitlyStopped && !force) {
+    if (force) {
+      isExplicitlyStopped = false;
+    } else if (isExplicitlyStopped) {
       console.log('[VisualCast] 当前处于后台停止态，保持停止');
       return;
     }
     if (!force && loopMode === 'SINGLE_LOOP') {
-      if (currentMediaType === 'video') {
+      if (currentMediaType === 'video' && activeVideoEl) {
         activeVideoEl.currentTime = 0;
         activeVideoEl.play().catch(() => {});
       } else if (currentMediaType === 'audio' && mainAudioEl) {
@@ -536,7 +538,7 @@
 
     if (!force && loopMode === 'PLAY_ONCE') {
       console.log('[VisualCast] 单个播放一次模式播放完毕，停止放映');
-      if (currentMediaType === 'video') {
+      if (currentMediaType === 'video' && activeVideoEl) {
         activeVideoEl.pause();
       } else if (currentMediaType === 'audio' && mainAudioEl) {
         mainAudioEl.pause();
@@ -546,29 +548,118 @@
 
     refreshPlaylist();
     if (currentPlaylist.length === 0) {
-      activeVideoEl.currentTime = 0;
-      activeVideoEl.play().catch(() => {});
+      if (currentMediaType === 'video' && activeVideoEl) {
+        activeVideoEl.currentTime = 0;
+        activeVideoEl.play().catch(() => {});
+      }
       return;
     }
 
     currentPlayIndex = (currentPlayIndex + 1) % currentPlaylist.length;
     const nextItem = currentPlaylist[currentPlayIndex];
     if (nextItem) {
-      console.log(`[VisualCast] 自动无缝轮播下一曲 [${loopMode}]: ${nextItem.name}`);
+      console.log(`[VisualCast] 切换下一曲 [${loopMode}]: ${nextItem.name}`);
       switchMedia(nextItem, true);
     }
   }
 
   // 切上一曲调度机
   function playPrevTrack(force = false) {
+    isExplicitlyStopped = false;
     refreshPlaylist();
     if (currentPlaylist.length === 0) return;
     currentPlayIndex = (currentPlayIndex - 1 + currentPlaylist.length) % currentPlaylist.length;
     const prevItem = currentPlaylist[currentPlayIndex];
     if (prevItem) {
+      console.log(`[VisualCast] 切换上一曲 [${loopMode}]: ${prevItem.name}`);
       switchMedia(prevItem, true);
     }
   }
+
+  // 播放/暂停切换
+  function togglePlayPause() {
+    isExplicitlyStopped = false;
+    if (currentMediaType === 'video' && activeVideoEl) {
+      if (activeVideoEl.paused) {
+        activeVideoEl.play().catch(() => {});
+      } else {
+        activeVideoEl.pause();
+      }
+    } else if (currentMediaType === 'audio' && mainAudioEl) {
+      if (mainAudioEl.paused) {
+        mainAudioEl.play().catch(() => {});
+      } else {
+        mainAudioEl.pause();
+      }
+    } else if (currentMediaType === 'image') {
+      if (imageTimer) {
+        clearTimeout(imageTimer);
+        imageTimer = null;
+      } else {
+        scheduleImageNext();
+      }
+    } else {
+      refreshPlaylist();
+      if (currentPlaylist.length > 0) {
+        switchMedia(currentPlaylist[currentPlayIndex] || currentPlaylist[0], true);
+      }
+    }
+  }
+
+  // 开始/继续播放
+  function playCurrentMedia() {
+    isExplicitlyStopped = false;
+    setBlackout(false);
+    setFreeze(false);
+    if (currentMediaType === 'video' && activeVideoEl && activeVideoEl.src) {
+      activeVideoEl.play().catch(() => {});
+    } else if (currentMediaType === 'audio' && mainAudioEl && mainAudioEl.src) {
+      mainAudioEl.play().catch(() => {});
+    } else if (currentMediaType === 'image') {
+      if (!imageTimer) scheduleImageNext();
+    } else {
+      refreshPlaylist();
+      if (currentPlaylist.length > 0) {
+        switchMedia(currentPlaylist[currentPlayIndex] || currentPlaylist[0], true);
+      }
+    }
+  }
+
+  // 暂停播放
+  function pauseCurrentMedia() {
+    if (currentMediaType === 'video' && activeVideoEl) activeVideoEl.pause();
+    if (currentMediaType === 'audio' && mainAudioEl) mainAudioEl.pause();
+    if (imageTimer) { clearTimeout(imageTimer); imageTimer = null; }
+    if (docTimer) { clearTimeout(docTimer); docTimer = null; }
+  }
+
+  // 停止播放 (进度归零，保持当前帧常亮，绝不黑场)
+  function stopMedia() {
+    isExplicitlyStopped = true;
+    if (imageTimer) { clearTimeout(imageTimer); imageTimer = null; }
+    if (docTimer) { clearTimeout(docTimer); docTimer = null; }
+    if (activeVideoEl) { activeVideoEl.pause(); activeVideoEl.currentTime = 0; }
+    if (mainAudioEl) { mainAudioEl.pause(); mainAudioEl.currentTime = 0; }
+    fetch('/api/player/close_ppt', { method: 'POST' }).catch(() => {});
+    setBlackout(false);
+  }
+
+  function nextMedia() {
+    playNextTrack(true);
+  }
+
+  function prevMedia() {
+    playPrevTrack(true);
+  }
+
+  window.togglePlayPause = togglePlayPause;
+  window.playCurrentMedia = playCurrentMedia;
+  window.pauseCurrentMedia = pauseCurrentMedia;
+  window.stopMedia = stopMedia;
+  window.nextMedia = nextMedia;
+  window.prevMedia = prevMedia;
+  window.playNextTrack = playNextTrack;
+  window.playPrevTrack = playPrevTrack;
 
   // 图片轮播定时调度 (默认展示 10 秒自动轮播)
   function scheduleImageNext() {
@@ -1796,28 +1887,18 @@ function applyCommand(cmd, directParams) {
         checkScreenLicense();
         break;
       case 'PLAY':
-        isExplicitlyStopped = false;
-        setBlackout(false);
-        setFreeze(false);
-        if (currentMediaType === 'video' && activeVideoEl) activeVideoEl.play().catch(() => {});
-        if (currentMediaType === 'audio' && mainAudioEl) mainAudioEl.play().catch(() => {});
-        if (currentMediaType === 'image' && !imageTimer) scheduleImageNext();
+      case 'RESUME':
+        playCurrentMedia();
         break;
       case 'PAUSE':
-        if (currentMediaType === 'video' && activeVideoEl) activeVideoEl.pause();
-        if (currentMediaType === 'audio' && mainAudioEl) mainAudioEl.pause();
-        if (imageTimer) { clearTimeout(imageTimer); imageTimer = null; }
+        pauseCurrentMedia();
+        break;
+      case 'TOGGLE_PLAY':
+      case 'PLAY_PAUSE':
+        togglePlayPause();
         break;
       case 'STOP':
-        isExplicitlyStopped = true;
-        if (imageTimer) { clearTimeout(imageTimer); imageTimer = null; }
-        if (docTimer) { clearTimeout(docTimer); docTimer = null; }
-        videoA.pause(); videoA.currentTime = 0;
-        videoB.pause(); videoB.currentTime = 0;
-        if (mainAudioEl) { mainAudioEl.pause(); mainAudioEl.currentTime = 0; }
-        fetch('/api/player/close_ppt', { method: 'POST' }).catch(() => {});
-        // 关键需求2：点击停止按钮后黑场
-        setBlackout(true);
+        stopMedia();
         break;
       case 'SEEK':
         if (params.time !== undefined) {

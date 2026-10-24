@@ -712,32 +712,32 @@ public class MainActivity extends AppCompatActivity {
 
         if (keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER || keyCode == KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE) {
             if (webView != null) {
-                webView.evaluateJavascript("if (typeof togglePlayPause === 'function') togglePlayPause();", null);
+                webView.evaluateJavascript("if (typeof togglePlayPause === 'function') togglePlayPause(); else if (typeof applyCommand === 'function') applyCommand('TOGGLE_PLAY');", null);
             }
             return true;
         } else if (keyCode == KeyEvent.KEYCODE_MEDIA_PLAY) {
             if (webView != null) {
-                webView.evaluateJavascript("if (typeof playCurrentMedia === 'function') playCurrentMedia();", null);
+                webView.evaluateJavascript("if (typeof playCurrentMedia === 'function') playCurrentMedia(); else if (typeof applyCommand === 'function') applyCommand('PLAY');", null);
             }
             return true;
         } else if (keyCode == KeyEvent.KEYCODE_MEDIA_PAUSE) {
             if (webView != null) {
-                webView.evaluateJavascript("if (typeof pauseCurrentMedia === 'function') pauseCurrentMedia();", null);
+                webView.evaluateJavascript("if (typeof pauseCurrentMedia === 'function') pauseCurrentMedia(); else if (typeof applyCommand === 'function') applyCommand('PAUSE');", null);
             }
             return true;
         } else if (keyCode == KeyEvent.KEYCODE_MEDIA_STOP) {
             if (webView != null) {
-                webView.evaluateJavascript("if (typeof stopMedia === 'function') stopMedia();", null);
+                webView.evaluateJavascript("if (typeof stopMedia === 'function') stopMedia(); else if (typeof applyCommand === 'function') applyCommand('STOP');", null);
             }
             return true;
         } else if (keyCode == KeyEvent.KEYCODE_PAGE_DOWN || keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_MEDIA_NEXT) {
             if (webView != null) {
-                webView.evaluateJavascript("if (typeof nextMedia === 'function') nextMedia();", null);
+                webView.evaluateJavascript("if (typeof nextMedia === 'function') nextMedia(); else if (typeof applyCommand === 'function') applyCommand('NEXT');", null);
             }
             return true;
         } else if (keyCode == KeyEvent.KEYCODE_PAGE_UP || keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_MEDIA_PREVIOUS) {
             if (webView != null) {
-                webView.evaluateJavascript("if (typeof prevMedia === 'function') prevMedia();", null);
+                webView.evaluateJavascript("if (typeof prevMedia === 'function') prevMedia(); else if (typeof applyCommand === 'function') applyCommand('PREV');", null);
             }
             return true;
         } else if (keyCode == KeyEvent.KEYCODE_H || keyCode == KeyEvent.KEYCODE_MENU || keyCode == 72 || keyCode == 82) {

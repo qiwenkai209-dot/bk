@@ -334,13 +334,22 @@ public class HttpRouter {
                                 playerState.put("current_media", mName);
                                 playerState.put("state", "PLAYING");
                             } catch (Exception ignored) {}
+                        } else {
+                            try {
+                                playerState.put("state", "PLAYING");
+                            } catch (Exception ignored) {}
                         }
-                    } else if ("BLACKOUT".equals(cmd)) {
-                        boolean blackout = params.optBoolean("blackout", params.optBoolean("enabled", true));
+                    } else if ("PAUSE".equals(cmd)) {
                         try {
-                            playerState.put("blackout", blackout);
+                            playerState.put("state", "PAUSED");
                         } catch (Exception ignored) {}
-                        updateBlackoutState(blackout);
+                    } else if ("STOP".equals(cmd)) {
+                        try {
+                            playerState.put("state", "STOPPED");
+                            playerState.put("current_time", 0);
+                        } catch (Exception ignored) {}
+                    } else if ("BLACKOUT".equals(cmd)) {
+                        updateBlackoutState(false);
                     }
                     if ("VOLUME".equals(cmd) || "SET_VOLUME".equals(cmd)) {
                         int v = params.optInt("volume", 85);
@@ -1026,10 +1035,22 @@ public class HttpRouter {
 
             // 4. 播控动作指令下发
             if (("/api/player/play".equals(path) || "/api/player/play_media".equals(path) || "/api/player/load_and_play".equals(path)) && "POST".equals(method)) {
-                JSONObject b = new JSONObject(req.getBodyText());
+                JSONObject b = new JSONObject();
+                try {
+                    String body = req.getBodyText();
+                    if (body != null && !body.trim().isEmpty()) {
+                        b = new JSONObject(body);
+                    }
+                } catch (Exception ignored) {}
                 playerConfig.put("sleep_mode", false);
                 savePlayerConfig();
+                updateBlackoutState(false);
                 String mediaName = b.optString("name", b.optString("media", ""));
+                if (mediaName.isEmpty() && "/api/player/play".equals(path)) {
+                    pushCommand("PLAY", new JSONObject());
+                    try { playerState.put("state", "PLAYING"); } catch (Exception ignored) {}
+                    return HttpResponse.json("{\"status\":\"ok\",\"message\":\"播放指令已下发\"}");
+                }
                 String lower = mediaName.toLowerCase();
                 if (lower.endsWith(".ppt") || lower.endsWith(".pptx") || lower.endsWith(".pps") || lower.endsWith(".ppsx")) {
                     // 方案 C：使用 Android 端 WPS Office 全屏放映 PPT / 幻灯片
@@ -1047,6 +1068,10 @@ public class HttpRouter {
                     }
                 }
                 pushCommand("PLAY_MEDIA", b);
+                try {
+                    playerState.put("state", "PLAYING");
+                    if (!mediaName.isEmpty()) playerState.put("current_media", mediaName);
+                } catch (Exception ignored) {}
                 return HttpResponse.json("{\"status\":\"ok\",\"message\":\"切播指令已下发\"}");
             }
             if ("/api/player/open_ppt".equals(path) && "POST".equals(method)) {
@@ -1072,11 +1097,32 @@ public class HttpRouter {
             }
             if ("/api/player/stop".equals(path) && "POST".equals(method)) {
                 pushCommand("STOP", new JSONObject());
+                try { playerState.put("state", "STOPPED"); } catch (Exception ignored) {}
                 return HttpResponse.json("{\"status\":\"ok\",\"message\":\"停止指令已下发\"}");
             }
             if ("/api/player/pause".equals(path) && "POST".equals(method)) {
                 pushCommand("PAUSE", new JSONObject());
+                try { playerState.put("state", "PAUSED"); } catch (Exception ignored) {}
                 return HttpResponse.json("{\"status\":\"ok\",\"message\":\"暂停指令已下发\"}");
+            }
+            if ("/api/player/resume".equals(path) && "POST".equals(method)) {
+                pushCommand("PLAY", new JSONObject());
+                try { playerState.put("state", "PLAYING"); } catch (Exception ignored) {}
+                return HttpResponse.json("{\"status\":\"ok\",\"message\":\"恢复播放指令已下发\"}");
+            }
+            if ("/api/player/next".equals(path) && "POST".equals(method)) {
+                pushCommand("NEXT", new JSONObject());
+                try { playerState.put("state", "PLAYING"); } catch (Exception ignored) {}
+                return HttpResponse.json("{\"status\":\"ok\",\"message\":\"下一曲指令已下发\"}");
+            }
+            if (("/api/player/prev".equals(path) || "/api/player/previous".equals(path)) && "POST".equals(method)) {
+                pushCommand("PREV", new JSONObject());
+                try { playerState.put("state", "PLAYING"); } catch (Exception ignored) {}
+                return HttpResponse.json("{\"status\":\"ok\",\"message\":\"上一曲指令已下发\"}");
+            }
+            if (("/api/player/toggle".equals(path) || "/api/player/toggle_play".equals(path)) && "POST".equals(method)) {
+                pushCommand("TOGGLE_PLAY", new JSONObject());
+                return HttpResponse.json("{\"status\":\"ok\",\"message\":\"播放/暂停切换指令已下发\"}");
             }
             if ("/api/player/seek".equals(path) && "POST".equals(method)) {
                 pushCommand("SEEK", new JSONObject(req.getBodyText()));
@@ -1899,7 +1945,7 @@ public class HttpRouter {
         return defaultStandbyBytes != null ? defaultStandbyBytes : new byte[0];
     }
 
-    private void pushCommand(String action, JSONObject params) {
+    public void pushCommand(String action, JSONObject params) {
         synchronized (pendingCommands) {
             try {
                 if (pendingCommands.size() >= 50) {

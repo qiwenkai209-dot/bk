@@ -523,7 +523,6 @@
       if (btnPlay) btnPlay.textContent = '▶';
       if (timelineProgress) timelineProgress.value = 0;
       sendPlayerCommand('STOP');
-      sendPlayerCommand('BLACKOUT', { blackout: true, enabled: true });
     });
   }
 
