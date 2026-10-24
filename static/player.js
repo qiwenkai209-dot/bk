@@ -753,12 +753,7 @@
       try { mainAudioEl.currentTime = 0; } catch (e) {}
     }
 
-    // 2. 清除黑场、定格与计时器，关闭文档
-    setBlackout(false);
-    dismissFreezeCanvas();
-    if (imageTimer) { clearTimeout(imageTimer); imageTimer = null; }
-    if (docTimer) { clearTimeout(docTimer); docTimer = null; }
-    fetch('/api/player/close_ppt', { method: 'POST' }).catch(() => {});
+    // 2. (已按用户要求取消：不执行关闭黑场、解除定格、清除定时器、关闭文档)
 
     // 3. 寻找“图片素材文件夹的第一个图片”
     let targetImage = null;

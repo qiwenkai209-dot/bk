@@ -330,6 +330,12 @@ public class HttpRouter {
                         try {
                             playerState.put("state", "PAUSED");
                         } catch (Exception ignored) {}
+                    } else if ("STOP".equals(cmd)) {
+                        // Stop playback: set state to STOPPED and clear current media
+                        try {
+                            playerState.put("state", "STOPPED");
+                            playerState.remove("current_media");
+                        } catch (Exception ignored) {}
                     } else if ("BLACKOUT".equals(cmd)) {
                         updateBlackoutState(false);
                     }
@@ -1073,7 +1079,7 @@ public class HttpRouter {
             }
             if ("/api/player/stop".equals(path) && "POST".equals(method)) {
                 pushCommand("STOP", new JSONObject());
-                try { playerState.put("state", "PLAYING"); } catch (Exception ignored) {}
+                try { playerState.put("state", "STOPPED"); playerState.remove("current_media"); } catch (Exception ignored) {}
                 return HttpResponse.json("{\"status\":\"ok\",\"message\":\"停止指令已下发，切至图片素材文件夹第一张图片\"}");
             }
             if ("/api/player/pause".equals(path) && "POST".equals(method)) {
