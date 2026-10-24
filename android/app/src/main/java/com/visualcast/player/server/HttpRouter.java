@@ -339,14 +339,9 @@ public class HttpRouter {
                                 playerState.put("state", "PLAYING");
                             } catch (Exception ignored) {}
                         }
-                    } else if ("PAUSE".equals(cmd)) {
+                    } else if ("PAUSE".equals(cmd) || "STOP".equals(cmd)) {
                         try {
                             playerState.put("state", "PAUSED");
-                        } catch (Exception ignored) {}
-                    } else if ("STOP".equals(cmd)) {
-                        try {
-                            playerState.put("state", "STOPPED");
-                            playerState.put("current_time", 0);
                         } catch (Exception ignored) {}
                     } else if ("BLACKOUT".equals(cmd)) {
                         updateBlackoutState(false);

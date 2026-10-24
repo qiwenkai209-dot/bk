@@ -767,9 +767,8 @@ class PlayerCoordinator:
                     except Exception:
                         pass
             elif cmd_type == "STOP":
-                self.status["state"] = "STOPPED"
-                self.status["current_time"] = 0.0
-                # 停止播放时清理外部 PPT 窗口进程
+                self.status["state"] = "PAUSED"
+                # 停止指令平稳暂停并清理外部 PPT 窗口进程
                 try:
                     system_control.close_ppt_process()
                 except Exception:

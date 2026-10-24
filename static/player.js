@@ -586,12 +586,8 @@
       return;
     }
     if (force) {
-      isExplicitlyStopped = false;
       setBlackout(false);
       dismissFreezeCanvas();
-    } else if (isExplicitlyStopped) {
-      console.log('[VisualCast] 当前处于停止态，保持停止定格');
-      return;
     }
     if (!force && loopMode === 'SINGLE_LOOP') {
       if (currentMediaType === 'video' && activeVideoEl) {
@@ -667,10 +663,6 @@
 
   // 播放/暂停切换
   function togglePlayPause() {
-    if (isExplicitlyStopped) {
-      playCurrentMedia();
-      return;
-    }
     const v = (videoA && videoA.classList.contains('active')) ? videoA : ((videoB && videoB.classList.contains('active')) ? videoB : activeVideoEl);
     if (currentMediaType === 'video' && v) {
       if (v.paused) {
@@ -695,64 +687,39 @@
     }
   }
 
-  // 开始/重新播放 (从停止状态或暂停状态100%可靠平滑起播)
+  // 开始/继续播放 (平滑稳定起播)
   function playCurrentMedia() {
-    console.log('[VisualCast] 执行开始/重新播放');
+    console.log('[VisualCast] 执行开始/继续播放');
     setBlackout(false);
-
-    const wasStopped = isExplicitlyStopped;
+    dismissFreezeCanvas();
     isExplicitlyStopped = false;
 
     const v = (videoA && videoA.classList.contains('active')) ? videoA : ((videoB && videoB.classList.contains('active')) ? videoB : activeVideoEl);
 
     if (currentMediaType === 'video' && v) {
-      const dur = v.duration || 0;
-      if (wasStopped || v.ended || (dur > 0 && v.currentTime >= dur - 0.2)) {
-        console.log('[VisualCast] 从头重新起播：进度归零并播放');
+      if (v.ended) {
         try { v.currentTime = 0; } catch (e) {}
       }
 
-      // 监听视频真正出帧渲染时再撤去定格 Canvas，实现 0 黑屏 0 闪烁极致平滑起播
-      let unfreezed = false;
-      const doDismiss = function() {
-        if (unfreezed) return;
-        unfreezed = true;
-        v.removeEventListener('playing', doDismiss);
-        v.removeEventListener('timeupdate', doDismiss);
-        dismissFreezeCanvas();
-      };
-
-      v.addEventListener('playing', doDismiss, { once: true });
-      v.addEventListener('timeupdate', doDismiss, { once: true });
-
       const p = v.play();
       if (p !== undefined) {
-        p.then(function() {
-          console.log('[VisualCast] 视频起播成功');
-          setTimeout(doDismiss, 60);
-        }).catch(function(err) {
+        p.catch(function(err) {
           console.warn('[VisualCast] 视频直接播放被阻，使用 switchMedia 重新载入起播:', err);
-          doDismiss();
           if (currentMediaName) {
             switchMedia(currentMediaName, true, true);
           }
         });
-      } else {
-        setTimeout(doDismiss, 80);
       }
     } else if (currentMediaType === 'audio' && mainAudioEl) {
-      dismissFreezeCanvas();
-      if (wasStopped || mainAudioEl.ended) {
+      if (mainAudioEl.ended) {
         try { mainAudioEl.currentTime = 0; } catch(e) {}
       }
       mainAudioEl.play().catch(function() {
         if (currentMediaName) switchMedia(currentMediaName, true, true);
       });
     } else if (currentMediaType === 'image') {
-      dismissFreezeCanvas();
       if (!imageTimer) scheduleImageNext();
     } else {
-      dismissFreezeCanvas();
       refreshPlaylist();
       if (currentPlaylist.length > 0) {
         switchMedia(currentPlaylist[currentPlayIndex] || currentPlaylist[0], true, false);
@@ -760,9 +727,10 @@
     }
   }
 
-  // 暂停播放 (保持在当前进度暂停)
+  // 暂停播放 (保持在当前画面暂停)
   function pauseCurrentMedia() {
     console.log('[VisualCast] 执行暂停播放');
+    isExplicitlyStopped = false;
     const v = (videoA && videoA.classList.contains('active')) ? videoA : ((videoB && videoB.classList.contains('active')) ? videoB : activeVideoEl);
     if (currentMediaType === 'video' && v) v.pause();
     if (currentMediaType === 'audio' && mainAudioEl) mainAudioEl.pause();
@@ -770,33 +738,10 @@
     if (docTimer) { clearTimeout(docTimer); docTimer = null; }
   }
 
-  // 停止播放 (影片定格在当前/末尾画面常亮不黑屏，底层安全归零，点击开始从头重新播放)
+  // 停止功能已完全删除，为兼容老接口/中控指令，安全转为平稳暂停
   function stopMedia() {
-    console.log('[VisualCast] 执行停止播放：Canvas抓帧定格常亮，底层归零待命');
-    isExplicitlyStopped = true;
-    if (imageTimer) { clearTimeout(imageTimer); imageTimer = null; }
-    if (docTimer) { clearTimeout(docTimer); docTimer = null; }
-
-    // 1. 关闭黑场遮罩，确保大屏 100% 常亮
-    setBlackout(false);
-
-    // 2. 使用 Canvas 抓取当前大屏精彩画面，瞬间覆盖定格常亮，绝不黑屏！
-    captureFreezeCanvas();
-
-    // 3. 底层视频平稳暂停，并安全将进度复位至第 0 秒，为下次从头起播做好 100% 准备
-    const v = (videoA && videoA.classList.contains('active')) ? videoA : ((videoB && videoB.classList.contains('active')) ? videoB : activeVideoEl);
-    if (currentMediaType === 'video' && v) {
-      v.pause();
-      try {
-        v.currentTime = 0;
-      } catch (e) {}
-    }
-
-    if (mainAudioEl) {
-      mainAudioEl.pause();
-      try { mainAudioEl.currentTime = 0; } catch (e) {}
-    }
-
+    console.log('[VisualCast] 停止指令已安全转为暂停');
+    pauseCurrentMedia();
     fetch('/api/player/close_ppt', { method: 'POST' }).catch(() => {});
   }
 
@@ -2306,12 +2251,6 @@ function applyCommand(cmd, directParams) {
     const v = e.target;
     if (currentMediaType === 'stream') return;
 
-    if (isExplicitlyStopped) {
-      console.log('[VisualCast] 当前处于停止态，保持定格，不执行切曲');
-      v.pause();
-      return;
-    }
-
     if (loopMode === 'SINGLE_LOOP') {
       console.log('[VisualCast] 视频播放完成：执行单个循环重播');
       v.currentTime = 0;
@@ -2320,8 +2259,8 @@ function applyCommand(cmd, directParams) {
     }
 
     if (loopMode === 'PLAY_ONCE') {
-      console.log('[VisualCast] 视频播放完成：单次播放模式，停止定格常亮');
-      stopMedia();
+      console.log('[VisualCast] 视频播放完成：单次播放模式，保持末帧暂停');
+      v.pause();
       return;
     }
 
@@ -2778,22 +2717,14 @@ function applyCommand(cmd, directParams) {
       let vol = Math.round(activeVideoEl.volume * 100);
       let isMuted = activeVideoEl.muted;
 
-      if (isExplicitlyStopped) {
-        state = 'STOPPED';
-        currTime = 0;
-        if (currentMediaType === 'audio' && mainAudioEl) {
-          dur = mainAudioEl.duration || 0;
-        } else if (currentMediaType === 'video' && activeVideoEl) {
-          dur = activeVideoEl.duration || 0;
-        }
-      } else if (currentMediaType === 'audio' && mainAudioEl) {
-        state = mainAudioEl.paused ? (mainAudioEl.currentTime === 0 ? 'STOPPED' : 'PAUSED') : 'PLAYING';
+      if (currentMediaType === 'audio' && mainAudioEl) {
+        state = mainAudioEl.paused ? 'PAUSED' : 'PLAYING';
         currTime = mainAudioEl.currentTime || 0;
         dur = mainAudioEl.duration || 0;
         vol = Math.round(mainAudioEl.volume * 100);
         isMuted = mainAudioEl.muted;
       } else if (currentMediaType === 'video') {
-        state = activeVideoEl.paused ? (activeVideoEl.currentTime === 0 ? 'STOPPED' : 'PAUSED') : 'PLAYING';
+        state = activeVideoEl.paused ? 'PAUSED' : 'PLAYING';
         currTime = activeVideoEl.currentTime || 0;
         dur = activeVideoEl.duration || 0;
         vol = Math.round(activeVideoEl.volume * 100);
