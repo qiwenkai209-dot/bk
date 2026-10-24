@@ -44,13 +44,33 @@
   let isLicenseBlocked = false;
   let isSystemSleeping = false; // 严密隔离系统待机休眠与用户普通黑场屏蔽状态
 
-// ===================== 左右翻页：严格仅翻页待机目录 =====================
+// ===================== 左右翻页与触控滑动：严格仅翻页待机素材 =====================
   const touchNavPrev = document.getElementById('touch-nav-prev');
   const touchNavNext = document.getElementById('touch-nav-next');
+  const swipeFeedbackEl = document.getElementById('touch-swipe-feedback');
   let isTouchNavEnabled = false;
+  let lastNavTouchTime = 0;
+  let swipeFeedbackTimer = null;
+
+  function showSwipeFeedback(text) {
+    if (!swipeFeedbackEl) return;
+    clearTimeout(swipeFeedbackTimer);
+    swipeFeedbackEl.textContent = text;
+    swipeFeedbackEl.classList.remove('hidden');
+    swipeFeedbackEl.style.display = 'block';
+    swipeFeedbackEl.style.opacity = '1';
+    swipeFeedbackTimer = setTimeout(() => {
+      swipeFeedbackEl.style.opacity = '0';
+      setTimeout(() => { swipeFeedbackEl.classList.add('hidden'); }, 200);
+    }, 600);
+  }
 
   function navStandbyFolder(direction) {
-    console.log('[VisualCast] 左右按键触控：严格切播待机目录, 方向:', direction);
+    const now = Date.now();
+    if (now - lastNavTouchTime < 250) return; // 250ms 点击防抖
+    lastNavTouchTime = now;
+
+    console.log('[VisualCast] 左右按键触控：严格切播待机素材, 方向:', direction);
     isExplicitlyStopped = false;
     setBlackout(false);
     currentFolder = '待机';
@@ -70,37 +90,90 @@
   }
 
   if (touchNavPrev) {
-    touchNavPrev.addEventListener('click', (e) => {
+    const onPrev = (e) => {
       e.stopPropagation();
+      if (e.cancelable && e.type === 'touchstart') e.preventDefault();
+      showSwipeFeedback('◀ 上一素材');
       navStandbyFolder(-1);
-    });
-    touchNavPrev.addEventListener('touchend', (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      navStandbyFolder(-1);
-    });
+    };
+    touchNavPrev.addEventListener('pointerdown', onPrev, { passive: false });
+    touchNavPrev.addEventListener('click', onPrev);
   }
   if (touchNavNext) {
-    touchNavNext.addEventListener('click', (e) => {
+    const onNext = (e) => {
       e.stopPropagation();
+      if (e.cancelable && e.type === 'touchstart') e.preventDefault();
+      showSwipeFeedback('下一素材 ▶');
       navStandbyFolder(1);
-    });
-    touchNavNext.addEventListener('touchend', (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      navStandbyFolder(1);
-    });
+    };
+    touchNavNext.addEventListener('pointerdown', onNext, { passive: false });
+    touchNavNext.addEventListener('click', onNext);
   }
+
+  // 大屏触屏全局左右滑动手势监听 (Swipe Left / Swipe Right 切换待机素材)
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let touchStartTime = 0;
+
+  window.addEventListener('touchstart', (e) => {
+    if (isPanelOpen) return;
+    if (e.touches && e.touches.length === 1) {
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      touchStartTime = Date.now();
+    }
+  }, { passive: true });
+
+  window.addEventListener('touchend', (e) => {
+    if (isPanelOpen) return;
+    if (!isTouchNavEnabled) return;
+    // 如果触摸事件落在控制面板、按键或者文档交互栏上，不触发全局滑动
+    if (e.target && e.target.closest && (e.target.closest('#control-panel') || e.target.closest('.touch-nav-btn') || e.target.closest('#screen-doc-touch-bar') || e.target.closest('#screen-license-modal'))) {
+      return;
+    }
+    const touchEndTime = Date.now();
+    if (touchEndTime - touchStartTime > 800) return; // 超过 800ms 算长按或拖拽，不判定为滑动
+    if (!e.changedTouches || e.changedTouches.length === 0) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    const deltaX = touchEndX - touchStartX;
+    const deltaY = touchEndY - touchStartY;
+
+    // 水平滑动位移必须大于 60px，且水平位移明显大于垂直位移 (1.3 倍以上)
+    if (Math.abs(deltaX) > 60 && Math.abs(deltaX) > Math.abs(deltaY) * 1.3) {
+      if (deltaX < 0) {
+        // 向左滑动：切换下一待机素材
+        console.log('[VisualCast] 触控手势：向左滑动 -> 切换下一待机素材');
+        showSwipeFeedback('下一素材 ▶');
+        navStandbyFolder(1);
+      } else {
+        // 向右滑动：切换上一待机素材
+        console.log('[VisualCast] 触控手势：向右滑动 -> 切换上一待机素材');
+        showSwipeFeedback('◀ 上一素材');
+        navStandbyFolder(-1);
+      }
+    }
+  }, { passive: true });
 
   function setTouchModeUI(enabled) {
     isTouchNavEnabled = !!enabled;
     if (touchNavPrev) {
       touchNavPrev.classList.toggle('hidden', !enabled);
       touchNavPrev.style.display = (enabled && !isBlackout) ? 'flex' : 'none';
+      if (enabled && !isBlackout) {
+        touchNavPrev.style.setProperty('display', 'flex', 'important');
+        touchNavPrev.style.setProperty('opacity', '1', 'important');
+        touchNavPrev.style.setProperty('visibility', 'visible', 'important');
+      }
     }
     if (touchNavNext) {
       touchNavNext.classList.toggle('hidden', !enabled);
       touchNavNext.style.display = (enabled && !isBlackout) ? 'flex' : 'none';
+      if (enabled && !isBlackout) {
+        touchNavNext.style.setProperty('display', 'flex', 'important');
+        touchNavNext.style.setProperty('opacity', '1', 'important');
+        touchNavNext.style.setProperty('visibility', 'visible', 'important');
+      }
     }
   }
 
@@ -114,6 +187,7 @@
   }
 
   const panel = document.getElementById('control-panel');
+  const panelMask = document.getElementById('control-panel-mask');
   const closeBtn = document.getElementById('btn-close-panel');
   const webUrlEl = document.getElementById('web-url');
   const remoteUrlEl = document.getElementById('remote-url');
@@ -543,7 +617,6 @@
 // 1. UI 抽屉面板切换 (按 H 键或右上角5击展开，隐藏时恢复全屏)
   let lastPanelOpenTime = 0;
 
-  // 1. UI 抽屉面板切换 (按 H 键或右上角5击展开，隐藏时恢复全屏)
   async function togglePanel(targetState) {
     if (targetState === undefined) {
       isPanelOpen = panel.classList.contains('hidden');
@@ -554,7 +627,23 @@
     if (isPanelOpen) {
       lastPanelOpenTime = Date.now();
       panel.classList.remove('hidden');
-      panel.style.display = 'flex';
+      panel.style.setProperty('display', 'flex', 'important');
+      panel.style.setProperty('opacity', '1', 'important');
+      panel.style.setProperty('visibility', 'visible', 'important');
+      panel.style.setProperty('transform', 'none', 'important');
+      panel.style.setProperty('pointer-events', 'auto', 'important');
+      panel.style.setProperty('z-index', '99999999', 'important');
+
+      // 全屏暗黑高对比度背景遮罩同步呈现
+      if (panelMask) {
+        panelMask.classList.remove('hidden');
+        panelMask.style.setProperty('display', 'block', 'important');
+        panelMask.style.setProperty('opacity', '1', 'important');
+        panelMask.style.setProperty('visibility', 'visible', 'important');
+        panelMask.style.setProperty('pointer-events', 'auto', 'important');
+        panelMask.style.setProperty('z-index', '99999990', 'important');
+      }
+
       // 面板打开时立即隐藏并完全穿透右上角触控热区，杜绝遮挡返回大屏与网卡卡片按钮
       if (touchTriggerEl) {
         touchTriggerEl.style.setProperty('display', 'none', 'important');
@@ -563,14 +652,26 @@
         touchTriggerEl.style.setProperty('width', '0px', 'important');
         touchTriggerEl.style.setProperty('height', '0px', 'important');
       }
-      loadSystemInfo();
-      loadAutostartStatus();
-      loadFullscreenStatus();
-      if (typeof loadPlayerMonitorsList === 'function') loadPlayerMonitorsList();
-      if (typeof loadPanelScheduledShutdown === 'function') loadPanelScheduledShutdown();
+      try { loadSystemInfo(); } catch (e) { console.warn(e); }
+      try { loadAutostartStatus(); } catch (e) { console.warn(e); }
+      try { loadFullscreenStatus(); } catch (e) { console.warn(e); }
+      try { if (typeof loadPlayerMonitorsList === 'function') loadPlayerMonitorsList(); } catch (e) {}
+      try { if (typeof loadPanelScheduledShutdown === 'function') loadPanelScheduledShutdown(); } catch (e) {}
     } else {
       panel.classList.add('hidden');
-      panel.style.display = 'none';
+      panel.style.setProperty('display', 'none', 'important');
+      panel.style.setProperty('opacity', '0', 'important');
+      panel.style.setProperty('visibility', 'hidden', 'important');
+      panel.style.setProperty('pointer-events', 'none', 'important');
+
+      if (panelMask) {
+        panelMask.classList.add('hidden');
+        panelMask.style.setProperty('display', 'none', 'important');
+        panelMask.style.setProperty('opacity', '0', 'important');
+        panelMask.style.setProperty('visibility', 'hidden', 'important');
+        panelMask.style.setProperty('pointer-events', 'none', 'important');
+      }
+
       // 面板隐藏后恢复右上角触控热区
       if (touchTriggerEl) {
         touchTriggerEl.style.removeProperty('display');
@@ -578,8 +679,8 @@
         touchTriggerEl.style.removeProperty('visibility');
         touchTriggerEl.style.removeProperty('width');
         touchTriggerEl.style.removeProperty('height');
-        touchTriggerEl.style.width = '220px';
-        touchTriggerEl.style.height = '220px';
+        touchTriggerEl.style.width = '240px';
+        touchTriggerEl.style.height = '240px';
         touchTriggerEl.style.display = 'block';
         touchTriggerEl.style.pointerEvents = 'auto';
       }
@@ -613,20 +714,20 @@
     cornerIndicatorTimer = setTimeout(() => {
       ind.style.opacity = '0';
       setTimeout(() => { ind.style.display = 'none'; }, 200);
-    }, 800);
+    }, 1000);
   }
 
   function registerCornerHit(e) {
-    if (isPanelOpen || isBlackout) return;
+    if (isPanelOpen) return;
     const now = Date.now();
-    // 物理点击防抖：220ms 内相同物理点击只计一次
-    if (now - lastRegisterTimestamp < 220) {
+    // 物理点击防抖：140ms 内相同物理点击只计一次
+    if (now - lastRegisterTimestamp < 140) {
       return;
     }
     lastRegisterTimestamp = now;
 
-    // 超过 3 秒无后续点击，重置为 1
-    if (now - lastCornerTouchTime > 3000) {
+    // 超过 3.5 秒无后续点击，重置为 1
+    if (now - lastCornerTouchTime > 3500) {
       cornerTouchCount = 1;
     } else {
       cornerTouchCount++;
@@ -637,30 +738,43 @@
 
     if (cornerTouchCount >= 5) {
       cornerTouchCount = 0;
+      if (isBlackout) {
+        setBlackout(false);
+      }
       togglePanel(true);
     }
   }
 
   if (touchTriggerEl) {
-    // 仅监听单一 pointerdown 事件，杜绝 pointerdown + click 重复触发双计
-    touchTriggerEl.addEventListener('pointerdown', function(e) {
+    const handleCornerEvent = function(e) {
       if (isPanelOpen) return;
       e.stopPropagation();
       registerCornerHit(e);
-    });
+    };
+    touchTriggerEl.addEventListener('pointerdown', handleCornerEvent, { passive: true });
+    touchTriggerEl.addEventListener('touchstart', handleCornerEvent, { passive: true });
+    touchTriggerEl.addEventListener('click', handleCornerEvent);
   }
 
-  // 全局保底监听：如果任何鼠标/触控指针点击落在右上角 220×220px 范围 (排除面板展开中及面板内元素)
-  window.addEventListener('pointerdown', function(e) {
+  // 全局保底监听：如果任何鼠标/触控指针点击落在右上角 240×240px 范围 (排除面板展开中及面板内元素)
+  const handleGlobalCorner = function(e) {
     if (isPanelOpen) return;
-    if (e.target && e.target.closest('#control-panel')) return;
+    if (e.target && e.target.closest && (e.target.closest('#control-panel') || e.target.closest('#control-panel-mask'))) return;
+    let clientX = e.clientX;
+    let clientY = e.clientY;
+    if (e.touches && e.touches.length > 0) {
+      clientX = e.touches[0].clientX;
+      clientY = e.touches[0].clientY;
+    }
     const w = window.innerWidth || 1920;
-    if (e.clientX > w - 220 && e.clientY < 220) {
+    if (clientX !== undefined && clientY !== undefined && clientX > w - 240 && clientY < 240) {
       registerCornerHit(e);
     }
-  });
+  };
+  window.addEventListener('pointerdown', handleGlobalCorner, { passive: true });
+  window.addEventListener('touchstart', handleGlobalCorner, { passive: true });
 
-  // 面板返回大屏 / 关闭按钮 (带 800ms 面板展开保护锁与 350ms 防抖，杜绝 5 击过程中的惯性点击导致秒关跳过)
+  // 面板返回大屏 / 关闭按钮 (带 1200ms 面板展开保护锁与 350ms 防抖，杜绝 5 击过程中的惯性点击导致秒关跳过)
   let lastClosePanelTime = 0;
   function doClosePanel(e) {
     if (e) {
@@ -668,8 +782,8 @@
       e.preventDefault();
     }
     const now = Date.now();
-    // 核心保护：面板刚展开 800ms 内严格禁止任何关闭触发，防止连续敲击第 5 次时的手指惯性砸中右上角关闭按钮导致直接跳过！
-    if (now - lastPanelOpenTime < 800) {
+    // 核心保护：面板刚展开 1200ms 内严格禁止任何关闭触发，防止连续敲击第 5 次时的手指惯性砸中右上角关闭按钮导致直接跳过！
+    if (now - lastPanelOpenTime < 1200) {
       console.log('[VisualCast] 过滤面板唤出瞬间的惯性误触关闭');
       return;
     }
@@ -680,6 +794,9 @@
   }
   if (closeBtn) {
     closeBtn.addEventListener('click', doClosePanel);
+  }
+  if (panelMask) {
+    panelMask.addEventListener('click', doClosePanel);
   }
 
   // 阻止面板内部点击冒泡

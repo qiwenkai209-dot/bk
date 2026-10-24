@@ -445,6 +445,7 @@ public class HttpRouter {
                     res.put("current_folder", playerConfig.optString("current_folder", ""));
                     res.put("subtitle", playerConfig.optJSONObject("subtitle") != null ? playerConfig.optJSONObject("subtitle") : new JSONObject());
                     res.put("orientation", playerConfig.optString("orientation", "landscape"));
+                    res.put("touch_mode", playerConfig.optBoolean("touch_mode", false));
                     return HttpResponse.json(res.toString());
                 }
             }

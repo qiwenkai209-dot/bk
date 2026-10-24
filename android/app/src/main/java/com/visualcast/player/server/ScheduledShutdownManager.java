@@ -94,39 +94,26 @@ public class ScheduledShutdownManager {
             SimpleDateFormat dfTime = new SimpleDateFormat("HH:mm", Locale.getDefault());
             String nowTimeStr = dfTime.format(new Date());
 
-            // 1. 关机/闭馆排程核验 (到达关机时刻，且今日未取消、未重复执行)
+            // 1. 关机/闭馆排程核验：按要求删除定时关机休眠功能，保留界面排程按钮与配置，大屏 24 小时常亮放映
             String shutdownTime = cfg.optString("shutdown_time", cfg.optString("time", "21:30")).trim();
             if (nowTimeStr.equals(shutdownTime)) {
                 if (!todayCancelled && !todayStr.equals(lastExecutedDate)) {
                     lastExecutedDate = todayStr;
-                    Log.i(TAG, "命中闭馆定时关机排程: " + nowTimeStr + "，全链路执行安全休眠闭馆");
-                    HttpRouter.setGlobalSleepMode(true);
-                    MainActivity act = MainActivity.getInstance();
-                    if (act != null) {
-                        act.triggerSleepTransition(true);
-                        act.showScreenToast("⏰ 闭馆时间已到，系统进入定时休眠节能模式");
-                    }
+                    Log.i(TAG, "命中定时关机排程时刻: " + nowTimeStr + "，商显大屏已禁用实际关机与休眠，保持24小时常亮放映");
                 }
             } else {
-                // 如果过了当前关机时刻，自动重置今日取消标记，为下一日排程做准备
                 if (!nowTimeStr.equals(shutdownTime) && todayCancelled && !todayStr.equals(lastExecutedDate)) {
                     todayCancelled = false;
                 }
             }
 
-            // 2. 开机/开馆排程核验 (到达开馆时刻，且今日未重复唤醒)
+            // 2. 开机/开馆排程核验：确保处于正常常亮放映状态
             boolean bootEnabled = cfg.optBoolean("boot_enabled", false);
             String bootTime = cfg.optString("boot_time", "08:30").trim();
             if (bootEnabled && nowTimeStr.equals(bootTime)) {
                 if (!todayStr.equals(lastExecutedBootDate)) {
                     lastExecutedBootDate = todayStr;
-                    Log.i(TAG, "命中开馆开机排程: " + nowTimeStr + "，全链路点亮大屏起播待机素材");
-                    HttpRouter.setGlobalSleepMode(false);
-                    MainActivity act = MainActivity.getInstance();
-                    if (act != null) {
-                        act.triggerSleepTransition(false);
-                        act.showScreenToast("☀️ 开馆时间已到，大屏已自动点亮并恢复待机放映");
-                    }
+                    Log.i(TAG, "命中开馆开机排程: " + nowTimeStr + "，确保大屏保持正常放映");
                 }
             }
 

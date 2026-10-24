@@ -13,14 +13,16 @@
     }
     html::-webkit-scrollbar, body::-webkit-scrollbar { display: none !important; width: 0 !important; height: 0 !important; }
     .control-panel.hidden { display: none !important; }
+    .control-panel-mask.hidden { display: none !important; }
     .screen-doc-touch-bar.hidden { display: none !important; }
     .usb-toast.hidden { display: none !important; }
   </style>
   <link rel="stylesheet" href="/static/player.css">
 </head>
 <body>
-  <!-- 核心媒体渲染全屏视窗 -->
-  
+  <!-- 触屏左右滑动微反馈气泡 -->
+  <div id="touch-swipe-feedback" class="touch-swipe-feedback hidden"></div>
+
   <!-- 触摸交互左右翻页大按键 (后台开启触摸交互时浮现) -->
   <div id="touch-nav-prev" class="touch-nav-btn touch-nav-left hidden" title="上一素材">◀</div>
   <div id="touch-nav-next" class="touch-nav-btn touch-nav-right hidden" title="下一素材">▶</div>
@@ -114,8 +116,11 @@
   <canvas id="echo-canvas" width="960" height="540" style="display:none;"></canvas>
 
   <!-- 触控大屏专用隐形热区 (右上角快速连续点击 5 次唤出抽屉，支持鼠标与触控点击) -->
-  <div id="touch-corner-trigger" class="touch-corner-trigger" style="position:fixed;top:0;right:0;width:220px;height:220px;z-index:9999;cursor:pointer;background:transparent;touch-action:manipulation;" title="触控大屏：右上角快速连续点击 5 次唤出受控面板"></div>
-  <div id="touch-corner-indicator" class="touch-corner-indicator" style="display:none;position:fixed;top:18px;right:18px;z-index:999999;background:rgba(15,23,42,0.92);backdrop-filter:blur(12px);border:1px solid #00f0ff;border-radius:20px;padding:6px 14px;color:#00f0ff;font-size:13px;font-weight:700;box-shadow:0 0 18px rgba(0,240,255,0.4);pointer-events:none;transition:opacity 0.2s ease;"></div>
+  <div id="touch-corner-trigger" class="touch-corner-trigger" style="position:fixed;top:0;right:0;width:240px;height:240px;z-index:9999999 !important;cursor:pointer;background:transparent;touch-action:manipulation;pointer-events:auto !important;" title="触控大屏：右上角快速连续点击 5 次唤出受控面板"></div>
+  <div id="touch-corner-indicator" class="touch-corner-indicator" style="display:none;position:fixed;top:18px;right:18px;z-index:99999;background:rgba(15,23,42,0.92);backdrop-filter:blur(12px);border:1px solid #00f0ff;border-radius:20px;padding:6px 14px;color:#00f0ff;font-size:13px;font-weight:700;box-shadow:0 0 18px rgba(0,240,255,0.4);pointer-events:none !important;transition:opacity 0.2s ease;"></div>
+
+  <!-- 全屏半透明高对比度暗黑背景遮罩 (菜单展开时显现，凸显运维控制台) -->
+  <div id="control-panel-mask" class="control-panel-mask hidden"></div>
 
   <div id="control-panel" class="control-panel hidden">
     <div class="panel-header">

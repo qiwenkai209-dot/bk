@@ -242,9 +242,8 @@ class ScheduledShutdownManager:
                     with self.lock:
                         if today_str not in self.executed_dates and today_str not in self.cancelled_dates:
                             self.executed_dates.add(today_str)
-                            print(f"[ScheduledShutdown] 触发定时关机！设定时间={target_dt.strftime('%H:%M:%S')}, 当前时间={now.strftime('%H:%M:%S')}, 延迟={elapsed_seconds:.1f}s，在1分钟宽容窗口内执行 Windows 系统安全关闭命令...")
-                            log_event("SHUTDOWN", f"定时关机时间到达 ({target_dt.strftime('%H:%M')})，系统执行安全关机")
-                            system_control.shutdown_system(force=True)
+                            print(f"[ScheduledShutdown] 定时关机排程时刻到达 ({target_dt.strftime('%H:%M')})。按商显运营规范，实际系统关机指令已安全屏蔽，大屏 24 小时保持常亮放映。")
+                            log_event("SHUTDOWN", f"定时关机排程时刻到达 ({target_dt.strftime('%H:%M')})，系统保持常亮放映")
 
             except Exception as e:
                 print(f"[ScheduledShutdown] 调度守护异常: {e}")
