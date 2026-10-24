@@ -462,6 +462,7 @@ body, html {
   height: 100%;
   z-index: 9990;
   display: none;
+  pointer-events: none !important;
 }
 
 .freeze-canvas.active {

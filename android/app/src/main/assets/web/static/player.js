@@ -607,72 +607,92 @@
     }
   }
 
+  function dismissFreezeCanvas() {
+    isFrozen = false;
+    if (freezeCanvas) {
+      freezeCanvas.classList.remove('active');
+      freezeCanvas.style.display = 'none';
+      try {
+        const ctx = freezeCanvas.getContext('2d');
+        ctx.clearRect(0, 0, freezeCanvas.width, freezeCanvas.height);
+      } catch (e) {}
+    }
+  }
+
   // 开始/重新播放 (从停止状态无缝重新起播，或暂停继续播放)
   function playCurrentMedia() {
     console.log('[VisualCast] 执行开始/重新播放');
     setBlackout(false);
+    dismissFreezeCanvas();
 
-    const needRestart = isExplicitlyStopped || isStoppedAtEnd;
+    const wasStopped = isExplicitlyStopped || isStoppedAtEnd;
     isExplicitlyStopped = false;
     isStoppedAtEnd = false;
 
-    const dismissFreeze = () => {
-      setFreeze(false);
-    };
+    if (currentMediaType === 'video' && activeVideoEl) {
+      const dur = activeVideoEl.duration || 0;
+      const isAtEnd = (dur > 0 && activeVideoEl.currentTime >= dur - 0.4) || activeVideoEl.ended;
 
-    if (currentMediaType === 'video') {
-      const dur = (activeVideoEl && activeVideoEl.duration) ? activeVideoEl.duration : 0;
-      const isNearEnd = dur > 0 && activeVideoEl && (activeVideoEl.currentTime >= dur - 0.5 || activeVideoEl.ended);
+      // 如果是从停止状态重新起播，或者视频已经在末尾
+      if (wasStopped || isAtEnd) {
+        console.log('[VisualCast] 停止后重播/末尾起播：当前视频从第0秒重新起播');
+        activeVideoEl.pause();
+        activeVideoEl.currentTime = 0;
+        dismissFreezeCanvas();
 
-      // 如果是停止后重新起播，或者视频已在结尾：
-      if (needRestart || isNearEnd) {
-        console.log('[VisualCast] 停止后重播或末尾重播，启动全新起播流:', currentMediaName);
-        dismissFreeze();
-        if (currentMediaName) {
-          switchMedia(currentMediaName, true, true);
-          return;
-        } else {
-          refreshPlaylist();
-          if (currentPlaylist.length > 0) {
-            switchMedia(currentPlaylist[currentPlayIndex] || currentPlaylist[0], true, true);
-            return;
+        const triggerPlay = () => {
+          dismissFreezeCanvas();
+          const p = activeVideoEl.play();
+          if (p !== undefined) {
+            p.catch(err => {
+              console.warn('[VisualCast] activeVideoEl.play() 失败，尝试 load 后重播:', err);
+              try {
+                activeVideoEl.load();
+                activeVideoEl.currentTime = 0;
+                activeVideoEl.play().catch(e2 => console.error('[VisualCast] 重载播放依然失败:', e2));
+              } catch (e3) {}
+            });
           }
+        };
+
+        if (activeVideoEl.seeking) {
+          activeVideoEl.addEventListener('seeked', () => {
+            triggerPlay();
+          }, { once: true });
+        } else {
+          triggerPlay();
         }
+        return;
       }
 
       // 普通暂停恢复播放
-      dismissFreeze();
-      if (activeVideoEl && activeVideoEl.src) {
+      dismissFreezeCanvas();
+      if (activeVideoEl.paused) {
         const p = activeVideoEl.play();
         if (p !== undefined) {
           p.catch(err => {
-            console.warn('[VisualCast] play() 调用异常，回退重载起播:', err);
-            if (currentMediaName) {
-              switchMedia(currentMediaName, true, true);
-            }
+            console.warn('[VisualCast] 恢复播放异常，尝试重新起播:', err);
+            activeVideoEl.currentTime = 0;
+            activeVideoEl.play().catch(() => {});
           });
         }
-      } else {
-        if (currentMediaName) {
-          switchMedia(currentMediaName, true, true);
-        }
       }
-    } else if (currentMediaType === 'audio' && mainAudioEl && mainAudioEl.src) {
-      dismissFreeze();
+    } else if (currentMediaType === 'audio' && mainAudioEl) {
+      dismissFreezeCanvas();
       const dur = mainAudioEl.duration || 0;
-      if (needRestart || mainAudioEl.ended || (dur > 0 && mainAudioEl.currentTime >= dur - 0.5)) {
+      if (wasStopped || mainAudioEl.ended || (dur > 0 && mainAudioEl.currentTime >= dur - 0.4)) {
+        mainAudioEl.pause();
         mainAudioEl.currentTime = 0;
-        try { mainAudioEl.load(); } catch (e) {}
       }
       mainAudioEl.play().catch(() => {});
     } else if (currentMediaType === 'image') {
-      dismissFreeze();
+      dismissFreezeCanvas();
       if (!imageTimer) scheduleImageNext();
     } else {
-      dismissFreeze();
+      dismissFreezeCanvas();
       refreshPlaylist();
       if (currentPlaylist.length > 0) {
-        switchMedia(currentPlaylist[currentPlayIndex] || currentPlaylist[0], true, true);
+        switchMedia(currentPlaylist[currentPlayIndex] || currentPlaylist[0], true, false);
       }
     }
   }
@@ -696,9 +716,22 @@
     // 1. 强制关闭黑场遮罩，确保大屏 100% 常亮
     setBlackout(false);
 
-    // 2. 如果是视频，优先稳妥定格当前画面并防黑屏
+    // 2. 如果是视频，先暂停，稳妥定格在最后一帧
     if (currentMediaType === 'video' && activeVideoEl) {
-      // 关键防黑屏保底：利用 freezeCanvas 将当前正在展示的高清画面立刻定格在顶层，绝不漏出黑屏！
+      activeVideoEl.pause();
+
+      const dur = activeVideoEl.duration;
+      // 若视频具备有效时长，安全定位到末尾前 0.25 秒（保留充足余量，杜绝 EOF 硬解黑帧）
+      if (dur && !isNaN(dur) && dur > 0.8) {
+        const safeTargetTime = Math.max(0, dur - 0.25);
+        try {
+          if (Math.abs(activeVideoEl.currentTime - safeTargetTime) > 0.3) {
+            activeVideoEl.currentTime = safeTargetTime;
+          }
+        } catch (e) {}
+      }
+
+      // 利用 freezeCanvas 提供防黑保底（穿透事件）
       if (freezeCanvas && activeVideoEl.readyState >= 2) {
         try {
           const ctx = freezeCanvas.getContext('2d');
@@ -707,32 +740,6 @@
           ctx.drawImage(activeVideoEl, 0, 0, freezeCanvas.width, freezeCanvas.height);
           freezeCanvas.classList.add('active');
           freezeCanvas.style.display = 'block';
-        } catch (e) {
-          console.warn('[VisualCast] freezeCanvas 绘制异常:', e);
-        }
-      }
-      activeVideoEl.pause();
-
-      const dur = activeVideoEl.duration;
-      // 若视频具备有效时长，且当前并未处于结尾，可安全定位到末尾（保留 0.3s 安全余量，杜绝 EOF 硬解黑帧）
-      if (dur && !isNaN(dur) && dur > 1.0) {
-        const safeTargetTime = Math.max(0, dur - 0.3);
-        try {
-          // 仅在距离末尾较远时执行平滑跳尾
-          if (Math.abs(activeVideoEl.currentTime - safeTargetTime) > 0.5) {
-            activeVideoEl.currentTime = safeTargetTime;
-            // 当 seek 完成后，更新 freezeCanvas 为真正末帧画面
-            const onSeekEnd = () => {
-              activeVideoEl.removeEventListener('seeked', onSeekEnd);
-              if (freezeCanvas && activeVideoEl && !activeVideoEl.ended) {
-                try {
-                  const ctx = freezeCanvas.getContext('2d');
-                  ctx.drawImage(activeVideoEl, 0, 0, freezeCanvas.width, freezeCanvas.height);
-                } catch (err) {}
-              }
-            };
-            activeVideoEl.addEventListener('seeked', onSeekEnd, { once: true });
-          }
         } catch (e) {}
       }
     } else if (activeVideoEl) {
@@ -742,8 +749,8 @@
     if (mainAudioEl) {
       mainAudioEl.pause();
       const dur = mainAudioEl.duration;
-      if (dur && !isNaN(dur) && dur > 1.0) {
-        try { mainAudioEl.currentTime = Math.max(0, dur - 0.3); } catch (e) {}
+      if (dur && !isNaN(dur) && dur > 0.8) {
+        try { mainAudioEl.currentTime = Math.max(0, dur - 0.25); } catch (e) {}
       }
     }
 
