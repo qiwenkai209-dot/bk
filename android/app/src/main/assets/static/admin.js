@@ -521,7 +521,7 @@
   if (btnStop) {
     btnStop.addEventListener('click', () => {
       if (btnPlay) btnPlay.textContent = '▶';
-      if (timelineProgress) timelineProgress.value = 0;
+      if (timelineProgress) timelineProgress.value = 100;
       sendPlayerCommand('STOP');
     });
   }

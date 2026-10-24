@@ -576,44 +576,58 @@
     }
   }
 
+  let isStoppedAtEnd = false;
+
   // 播放/暂停切换
   function togglePlayPause() {
-    isExplicitlyStopped = false;
+    if (isExplicitlyStopped || isStoppedAtEnd) {
+      playCurrentMedia();
+      return;
+    }
     if (currentMediaType === 'video' && activeVideoEl) {
       if (activeVideoEl.paused) {
-        activeVideoEl.play().catch(() => {});
+        playCurrentMedia();
       } else {
-        activeVideoEl.pause();
+        pauseCurrentMedia();
       }
     } else if (currentMediaType === 'audio' && mainAudioEl) {
       if (mainAudioEl.paused) {
-        mainAudioEl.play().catch(() => {});
+        playCurrentMedia();
       } else {
-        mainAudioEl.pause();
+        pauseCurrentMedia();
       }
     } else if (currentMediaType === 'image') {
       if (imageTimer) {
-        clearTimeout(imageTimer);
-        imageTimer = null;
+        pauseCurrentMedia();
       } else {
-        scheduleImageNext();
+        playCurrentMedia();
       }
     } else {
-      refreshPlaylist();
-      if (currentPlaylist.length > 0) {
-        switchMedia(currentPlaylist[currentPlayIndex] || currentPlaylist[0], true);
-      }
+      playCurrentMedia();
     }
   }
 
-  // 开始/继续播放
+  // 开始/重新播放 (停止后点击开始重新从头播放)
   function playCurrentMedia() {
-    isExplicitlyStopped = false;
     setBlackout(false);
     setFreeze(false);
+
+    const needRestart = isExplicitlyStopped || isStoppedAtEnd;
+    isExplicitlyStopped = false;
+    isStoppedAtEnd = false;
+
     if (currentMediaType === 'video' && activeVideoEl && activeVideoEl.src) {
+      const dur = activeVideoEl.duration || 0;
+      if (needRestart || activeVideoEl.ended || (dur > 0 && activeVideoEl.currentTime >= dur - 0.15)) {
+        console.log('[VisualCast] 点击开始重新播放：进度归零重新起播');
+        activeVideoEl.currentTime = 0;
+      }
       activeVideoEl.play().catch(() => {});
     } else if (currentMediaType === 'audio' && mainAudioEl && mainAudioEl.src) {
+      const dur = mainAudioEl.duration || 0;
+      if (needRestart || mainAudioEl.ended || (dur > 0 && mainAudioEl.currentTime >= dur - 0.15)) {
+        mainAudioEl.currentTime = 0;
+      }
       mainAudioEl.play().catch(() => {});
     } else if (currentMediaType === 'image') {
       if (!imageTimer) scheduleImageNext();
@@ -633,15 +647,35 @@
     if (docTimer) { clearTimeout(docTimer); docTimer = null; }
   }
 
-  // 停止播放 (进度归零，保持当前帧常亮，绝不黑场)
+  // 停止播放 (影片定位到最后一帧并暂停，绝不黑场，点击开始重新播放)
   function stopMedia() {
+    console.log('[VisualCast] 执行停止播放：定格在最后一帧，等待点击开始重新播放');
     isExplicitlyStopped = true;
+    isStoppedAtEnd = true;
     if (imageTimer) { clearTimeout(imageTimer); imageTimer = null; }
     if (docTimer) { clearTimeout(docTimer); docTimer = null; }
-    if (activeVideoEl) { activeVideoEl.pause(); activeVideoEl.currentTime = 0; }
-    if (mainAudioEl) { mainAudioEl.pause(); mainAudioEl.currentTime = 0; }
+
+    if (currentMediaType === 'video' && activeVideoEl) {
+      activeVideoEl.pause();
+      const dur = activeVideoEl.duration;
+      if (dur && !isNaN(dur) && dur > 0) {
+        // 定位到影片距尾端 0.05 秒的最后一帧位置，画面清晰保持末尾画面
+        activeVideoEl.currentTime = Math.max(0, dur - 0.05);
+      }
+    } else if (activeVideoEl) {
+      activeVideoEl.pause();
+    }
+
+    if (mainAudioEl) {
+      mainAudioEl.pause();
+      const dur = mainAudioEl.duration;
+      if (dur && !isNaN(dur) && dur > 0) {
+        mainAudioEl.currentTime = Math.max(0, dur - 0.05);
+      }
+    }
+
     fetch('/api/player/close_ppt', { method: 'POST' }).catch(() => {});
-    setBlackout(false);
+    setBlackout(false); // 保持最后一帧常亮
   }
 
   function nextMedia() {
@@ -2149,6 +2183,12 @@ function applyCommand(cmd, directParams) {
   function handleVideoEnded(e) {
     const v = e.target;
     if (currentMediaType === 'stream') return;
+
+    if (isExplicitlyStopped || isStoppedAtEnd) {
+      console.log('[VisualCast] 当前处于停止态（保持在最后一帧），不执行切曲');
+      v.pause();
+      return;
+    }
 
     if (loopMode === 'SINGLE_LOOP') {
       console.log('[VisualCast] 视频播放完成：执行单个循环重播');
