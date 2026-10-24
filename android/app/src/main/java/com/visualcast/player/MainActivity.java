@@ -325,9 +325,8 @@ public class MainActivity extends AppCompatActivity {
                     if (intent == null || intent.getAction() == null) return;
                     String action = intent.getAction();
                     if (Intent.ACTION_SCREEN_OFF.equals(action)) {
-                        android.util.Log.i("VisualCast", "系统广播感知：大屏屏幕熄灭，进入低功耗待机态");
-                        isScreenAsleep = true;
-                        triggerSleepTransition(true);
+                        android.util.Log.i("VisualCast", "系统广播感知：大屏屏幕熄灭事件，已按需求旁路，保持商显常亮");
+                        isScreenAsleep = false;
                     } else if (Intent.ACTION_SCREEN_ON.equals(action) || Intent.ACTION_USER_PRESENT.equals(action)) {
                         android.util.Log.i("VisualCast", "系统广播感知：大屏屏幕点亮，从待机态唤醒");
                         isScreenAsleep = false;
@@ -545,34 +544,34 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void triggerSleepTransition(final boolean sleep) {
-        isScreenAsleep = sleep;
-        com.visualcast.player.server.HttpRouter.setGlobalSleepMode(sleep);
-        com.visualcast.player.server.HttpRouter.updateBlackoutState(sleep);
+        if (sleep) {
+            // 按用户要求：彻底删除待机、休眠功能，保留按钮，商显大屏保持常亮放映
+            android.util.Log.i("VisualCast", "待机休眠功能已删除，商显大屏保持常亮放映");
+            isScreenAsleep = false;
+            return;
+        }
+        isScreenAsleep = false;
+        com.visualcast.player.server.HttpRouter.setGlobalSleepMode(false);
+        com.visualcast.player.server.HttpRouter.updateBlackoutState(false);
         runOnUiThread(() -> {
-            if (!sleep) {
-                try {
-                    com.visualcast.player.utils.SystemHelper.bringVisualCastToFront(MainActivity.this);
-                    if (wakeLock == null) {
-                        PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-                        if (pm != null) {
-                            wakeLock = pm.newWakeLock(PowerManager.FULL_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.ON_AFTER_RELEASE, "VisualCast:Wakeup");
-                        }
+            try {
+                com.visualcast.player.utils.SystemHelper.bringVisualCastToFront(MainActivity.this);
+                if (wakeLock == null) {
+                    PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+                    if (pm != null) {
+                        wakeLock = pm.newWakeLock(PowerManager.FULL_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.ON_AFTER_RELEASE, "VisualCast:Wakeup");
                     }
-                    if (wakeLock != null && !wakeLock.isHeld()) {
-                        wakeLock.acquire(10000);
-                    }
-                } catch (Exception ignored) {}
-            }
+                }
+                if (wakeLock != null && !wakeLock.isHeld()) {
+                    wakeLock.acquire(10000);
+                }
+            } catch (Exception ignored) {}
             if (webView != null) {
                 try {
-                    if (!sleep) {
-                        webView.onResume();
-                        webView.resumeTimers();
-                    }
+                    webView.onResume();
+                    webView.resumeTimers();
                 } catch (Exception ignored) {}
-                String js = sleep 
-                    ? "try { if (window.setBlackout) window.setBlackout(true); if (window.triggerSystemPowerOff) window.triggerSystemPowerOff(); else if (window.applyCommand) window.applyCommand('SLEEP'); } catch(e){}"
-                    : "try { if (window.setBlackout) window.setBlackout(false); if (window.triggerSystemPowerOn) window.triggerSystemPowerOn(); if (window.returnToStandby) window.returnToStandby(true); if (window.applyCommand) window.applyCommand('WAKEUP'); } catch(e){}";
+                String js = "try { if (window.setBlackout) window.setBlackout(false); if (window.triggerSystemPowerOn) window.triggerSystemPowerOn(); if (window.returnToStandby) window.returnToStandby(true); if (window.applyCommand) window.applyCommand('WAKEUP'); } catch(e){}";
                 webView.evaluateJavascript(js, null);
             }
         });

@@ -1768,7 +1768,8 @@ function applyCommand(cmd, directParams) {
       case 'SLEEP':
       case 'SHUTDOWN':
       case 'POWEROFF':
-        triggerSystemPowerOff();
+        // 用户要求：彻底删除待机、关机休眠功能，大屏保持常亮放映
+        console.log('[VisualCast] 收到待机/关机指令，按需求旁路，保持常亮放映');
         break;
       case 'WAKEUP':
       case 'BOOT':
@@ -2118,57 +2119,12 @@ function applyCommand(cmd, directParams) {
 
   let powerOffTimer = null;
   function triggerSystemPowerOff() {
-    console.log('[VisualCast] 待机执行：柔和渐暗黑场，停止播放，进入低功耗待机态');
-    isSystemSleeping = true;
-    setBlackout(true);
-    setFreeze(false);
-    isExplicitlyStopped = true;
-
-    // 立即清理图片与文档自动切片定时器，防止待机期间定时器苏醒切曲
-    if (imageTimer) { clearTimeout(imageTimer); imageTimer = null; }
-    if (docTimer) { clearTimeout(docTimer); docTimer = null; }
-
-    // 1. 关闭并彻底隐藏受控抽屉面板
-    togglePanel(false);
-    if (panel) panel.style.display = 'none';
-
-    // 2. 隐藏右上角触摸热区
-    if (touchTriggerEl) touchTriggerEl.style.display = 'none';
-
-    // 3. 隐藏交互模式左右翻页大按键
-    if (touchNavPrev) touchNavPrev.style.display = 'none';
-    if (touchNavNext) touchNavNext.style.display = 'none';
-
-    // 4. 隐藏悬浮字幕层与文档触控栏
-    const subLayer = document.getElementById('subtitle-layer');
-    if (subLayer) {
-      subLayer.classList.remove('active');
-      subLayer.style.display = 'none';
-      subLayer.innerHTML = '';
-    }
-    const docBar = document.getElementById('screen-doc-touch-bar');
-    if (docBar) docBar.style.display = 'none';
-
-    // 5. 延迟 200ms 待黑场淡入后暂停音视频，清除轮播定时器，并彻底卸载解码器与显存
-    if (powerOffTimer) clearTimeout(powerOffTimer);
-    powerOffTimer = setTimeout(() => {
-      powerOffTimer = null;
-      if (!isSystemSleeping) return; // 如果已经唤醒，严禁卸载解码器！
-      if (imageTimer) { clearTimeout(imageTimer); imageTimer = null; }
-      if (docTimer) { clearTimeout(docTimer); docTimer = null; }
-      videoA.pause(); videoA.currentTime = 0; videoA.removeAttribute('data-src');
-      videoB.pause(); videoB.currentTime = 0; videoB.removeAttribute('data-src');
-      videoA.removeAttribute('src'); videoA.load(); // 彻底卸载解码器释放显存
-      videoB.removeAttribute('src'); videoB.load();
-      videoA.classList.remove('active');
-      videoB.classList.remove('active');
-      imgEl.removeAttribute('src');
-      imgEl.classList.remove('active');
-      if (mainAudioEl) {
-        try { mainAudioEl.pause(); mainAudioEl.currentTime = 0; } catch (e) {}
-      }
-      fetch('/api/player/close_ppt', { method: 'POST' }).catch(() => {});
-    }, 200);
+    console.log('[VisualCast] 待机/休眠功能已删除，商显大屏保持24小时常亮放映');
+    // 用户明确要求：彻底删除待机、休眠功能，保留按钮；绝不黑屏，绝不停播，大屏始终常亮放映
+    isSystemSleeping = false;
+    isExplicitlyStopped = false;
+    isBlackout = false;
+    return;
   }
   window.triggerSystemPowerOff = triggerSystemPowerOff;
 
@@ -2665,16 +2621,8 @@ function applyCommand(cmd, directParams) {
           }
         }
 
-        // 同步休眠/待机黑场模式 (严格基于 isSystemSleeping 区分系统休眠与普通手动黑场)
-        if (pullData.sleep_mode !== undefined) {
-          if (pullData.sleep_mode && !isSystemSleeping) {
-            console.log('[VisualCast] 轮询感知大屏进入待机休眠，激活黑场并停止播放');
-            triggerSystemPowerOff();
-          } else if (!pullData.sleep_mode && isSystemSleeping) {
-            console.log('[VisualCast] 轮询感知大屏待机已唤醒，恢复待机放映');
-            triggerSystemPowerOn();
-          }
-        }
+        // 待机/休眠功能已删除，始终保持常亮放映
+        isSystemSleeping = false;
 
         if (pullData.commands && pullData.commands.length > 0) {
           pullData.commands.forEach(cmd => applyCommand(cmd));

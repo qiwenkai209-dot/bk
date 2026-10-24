@@ -253,10 +253,8 @@ public class CentralControlServer {
                     act.triggerSleepTransition(false);
                 }
             } else if ("SLEEP".equals(c) || "POWER_OFF".equals(c) || "POWEROFF".equals(c) || "CLOSE_HALL".equals(c)) {
-                HttpRouter.setGlobalSleepMode(true);
-                if (act != null) {
-                    act.triggerSleepTransition(true);
-                }
+                // 按需求：待机、唤醒、定时功能已删除，大屏24小时常亮放映，旁路休眠操作
+                Log.i(TAG, "收到外部中控休眠指令，已按需求旁路，商显大屏保持常亮放映");
 
             // 6. 外部第三方应用拉起
             } else if (c.startsWith("LAUNCH_APP:") || c.startsWith("LAUNCH:")) {

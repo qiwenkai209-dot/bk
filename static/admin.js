@@ -720,8 +720,7 @@
         const data = await res.json();
         if (data.status === 'ok') {
           isDisplaySleeping = targetSleep;
-          updateSleepBtnUI(isDisplaySleeping);
-          showToast(targetSleep ? '🌙 大屏正在执行 2 秒拟真关机动效并进入休眠' : '☀️ 大屏正在执行 2 秒拟真开机动效并恢复放映');
+          showToast(targetSleep ? '🌙 待机功能已删除，商显大屏保持常亮放映' : '☀️ 大屏正常放映中');
         } else {
           showToast('操作失败: ' + data.message, '错误');
         }
@@ -4489,19 +4488,16 @@
     });
   }
 
-  // APK 待机按键 (与唤醒反之：开启黑场，停止放映)
+  // APK 待机按键 (保留按钮，删除实际功能，保持常亮放映)
   const btnActionSleep = document.getElementById('btn-action-sleep');
   if (btnActionSleep) {
     btnActionSleep.addEventListener('click', async () => {
-      showToast('🌙 正在进入大屏待机...', '大屏待机');
+      showToast('🌙 待机功能已旁路，商显大屏保持常亮放映', '大屏待机');
       try {
-        await fetch('/api/system/sleep', { method: 'POST' });
-        // 双通道下发：播控信道直接下发休眠与黑场停播
-        sendPlayerCommand('SLEEP');
-        sendPlayerCommand('BLACKOUT', { blackout: true, enabled: true });
-        showToast('🌙 大屏已待机 (已开启黑场，停止放映)', '待机休眠');
+        await fetch('/api/system/sleep', { method: 'POST' }).catch(() => {});
+        showToast('✅ 商显大屏保持24小时常亮放映中', '常亮放映');
       } catch (e) {
-        showToast('⚠️ 待机指令发送失败: ' + e, '异常');
+        showToast('⚠️ 提示: ' + e, '异常');
       }
     });
   }
