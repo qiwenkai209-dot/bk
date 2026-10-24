@@ -469,30 +469,36 @@
   });
 
   // 停止
-  btnStop.addEventListener('click', () => {
-    sendCommand('STOP');
-  });
+  if (btnStop) {
+    btnStop.addEventListener('click', () => {
+      sendCommand('STOP');
+    });
+  }
 
   // 黑场
   btnBlackout.addEventListener('click', () => {
     sendCommand('BLACKOUT', { blackout: !isBlackout });
   });
 
-  // 大屏深度休眠 / 唤醒切换 (带 2 秒拟真安卓系统开关机过渡动画)
+  // 大屏深度休眠 / 唤醒控制 (已彻底删除唤醒功能，保持大屏常亮放映)
   const btnRemoteSleep = document.getElementById('btn-remote-sleep');
   let isRemoteSleeping = false;
   if (btnRemoteSleep) {
     btnRemoteSleep.addEventListener('click', async () => {
       const targetSleep = !isRemoteSleeping;
       try {
-        const url = targetSleep ? '/api/system/sleep' : '/api/system/wakeup';
-        const res = await fetch(url, { method: 'POST' });
-        const d = await res.json();
-        if (d.status === 'ok') {
-          isRemoteSleeping = targetSleep;
-          btnRemoteSleep.textContent = targetSleep ? '☀️ 唤醒放映' : '🌙 大屏休眠';
-          btnRemoteSleep.style.color = targetSleep ? '#34d399' : '#38bdf8';
-          btnRemoteSleep.style.borderColor = targetSleep ? 'rgba(52, 211, 153, 0.6)' : '#38bdf8';
+        if (targetSleep) {
+          await fetch('/api/system/sleep', { method: 'POST' }).catch(() => {});
+          isRemoteSleeping = true;
+          btnRemoteSleep.textContent = '☀️ 唤醒';
+          btnRemoteSleep.style.color = '#34d399';
+          btnRemoteSleep.style.borderColor = 'rgba(52, 211, 153, 0.6)';
+        } else {
+          // 删除唤醒功能，仅重置按钮显示
+          isRemoteSleeping = false;
+          btnRemoteSleep.textContent = '🌙 大屏休眠';
+          btnRemoteSleep.style.color = '#38bdf8';
+          btnRemoteSleep.style.borderColor = '#38bdf8';
         }
       } catch (e) {}
     });

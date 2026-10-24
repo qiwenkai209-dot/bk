@@ -306,20 +306,7 @@ public class HttpRouter {
                             playerState.put("state", "PLAYING");
                         } catch (Exception ignored) {}
                     } else if ("POWERON".equals(cmd) || "BOOT".equals(cmd) || "WAKEUP".equals(cmd)) {
-                        playerConfig.put("sleep_mode", false);
-                        savePlayerConfig();
-                        updateBlackoutState(false);
-                        try {
-                            playerState.put("blackout", false);
-                            playerState.put("is_sleeping", false);
-                            playerState.put("state", "PLAYING");
-                        } catch (Exception ignored) {}
-                        JSONObject boParams = new JSONObject();
-                        try { boParams.put("blackout", false); boParams.put("enabled", false); } catch(Exception ignored){}
-                        pushCommand("BLACKOUT", boParams);
-                        if (com.visualcast.player.MainActivity.instance != null) {
-                            com.visualcast.player.MainActivity.instance.triggerSleepTransition(false);
-                        }
+                        // 按用户需求：删除唤醒按钮下所有功能，保留空白按钮图标，大屏保持24小时常亮放映
                     } else if ("PLAY_MEDIA".equals(cmd) || "LOAD_AND_PLAY".equals(cmd) || "PLAY".equals(cmd)
                             || "SWITCH_MEDIA".equals(cmd) || "PLAY_FOLDER".equals(cmd)
                             || "NEXT".equals(cmd) || "PREV".equals(cmd) || "DOC_NEXT".equals(cmd) || "DOC_PREV".equals(cmd)
@@ -1000,13 +987,7 @@ public class HttpRouter {
             }
 
             if (("/api/system/boot".equals(path) || "/api/system/power_on".equals(path) || "/api/system/wakeup".equals(path)) && "POST".equals(method)) {
-                setGlobalSleepMode(false);
-                MainActivity act = MainActivity.getInstance();
-                if (act != null) {
-                    act.triggerSleepTransition(false);
-                    act.showScreenToast("☀️ 大屏正常放映中");
-                }
-                return HttpResponse.json("{\"status\":\"ok\",\"message\":\"大屏正常放映中\"}");
+                return HttpResponse.json("{\"status\":\"ok\",\"message\":\"唤醒功能已删除，大屏保持常亮放映中\"}");
             }
 
             if ("/api/player/window_mode".equals(path)) {
@@ -1091,9 +1072,9 @@ public class HttpRouter {
                 return HttpResponse.json("{\"status\":\"ok\",\"message\":\"已成功退出文档放映并切回 VisualCast 主播控视窗\"}");
             }
             if ("/api/player/stop".equals(path) && "POST".equals(method)) {
-                pushCommand("PAUSE", new JSONObject());
-                try { playerState.put("state", "PAUSED"); } catch (Exception ignored) {}
-                return HttpResponse.json("{\"status\":\"ok\",\"message\":\"暂停指令已下发\"}");
+                pushCommand("STOP", new JSONObject());
+                try { playerState.put("state", "PLAYING"); } catch (Exception ignored) {}
+                return HttpResponse.json("{\"status\":\"ok\",\"message\":\"停止指令已下发，切至图片素材文件夹第一张图片\"}");
             }
             if ("/api/player/pause".equals(path) && "POST".equals(method)) {
                 pushCommand("PAUSE", new JSONObject());
@@ -1136,14 +1117,7 @@ public class HttpRouter {
                 return HttpResponse.json("{\"status\":\"ok\",\"message\":\"大屏常亮放映中（待机功能已删除）\"}");
             }
             if (("/api/player/wake".equals(path) || "/api/player/wakeup".equals(path) || "/api/player/power_on".equals(path) || "/api/player/poweron".equals(path)) && "POST".equals(method)) {
-                playerConfig.put("sleep_mode", false);
-                savePlayerConfig();
-                updateBlackoutState(false);
-                pushCommand("WAKEUP", new JSONObject());
-                if (com.visualcast.player.MainActivity.instance != null) {
-                    com.visualcast.player.MainActivity.instance.triggerSleepTransition(false);
-                }
-                return HttpResponse.json("{\"status\":\"ok\",\"message\":\"大屏正常放映中\"}");
+                return HttpResponse.json("{\"status\":\"ok\",\"message\":\"唤醒功能已删除，大屏保持常亮放映中\"}");
             }
             if ("/api/player/loop_mode".equals(path) && "POST".equals(method)) {
                 JSONObject b = new JSONObject(req.getBodyText());
@@ -1743,13 +1717,7 @@ public class HttpRouter {
                 return HttpResponse.json("{\"status\":\"ok\",\"message\":\"大屏已待机 (开启黑场，停止播放)\"}");
             }
             if ("/api/system/wakeup".equals(path) && "POST".equals(method)) {
-                setGlobalSleepMode(false);
-                MainActivity act = MainActivity.getInstance();
-                if (act != null) {
-                    act.triggerSleepTransition(false);
-                    act.showScreenToast("☀️ 大屏已唤醒，恢复待机放映");
-                }
-                return HttpResponse.json("{\"status\":\"ok\",\"message\":\"大屏已唤醒 (播放待机，关闭黑场)\"}");
+                return HttpResponse.json("{\"status\":\"ok\",\"message\":\"唤醒功能已删除，大屏保持常亮放映中\"}");
             }
             if ("/api/system/return_to_player".equals(path) && "POST".equals(method)) {
                 SystemHelper.bringVisualCastToFront(context);

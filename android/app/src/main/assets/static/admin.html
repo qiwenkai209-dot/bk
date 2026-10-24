@@ -147,6 +147,7 @@
             <div class="control-actions-row" id="video-ctrl-group">
               <button id="btn-prev" class="btn-ctrl" title="上一个素材">⏮</button>
               <button id="btn-play" class="btn-ctrl primary" title="播放 / 暂停">▶</button>
+              <button id="btn-stop" class="btn-ctrl" title="停止播放影片音乐，切至图片素材文件夹第一张图片">⏹</button>
               <button id="btn-next" class="btn-ctrl" title="下一个素材">⏭</button>
               <button id="btn-scale-mode" class="btn-special" title="画面拉伸模式：全屏拉伸 / 等比居中">⛶ 全屏拉伸</button>
               <button id="btn-admin-orientation" class="btn-special" title="切换大屏横竖屏方向：🖥️ 横屏 / 📱 竖屏">🖥️ 横屏模式</button>
@@ -342,8 +343,8 @@
               <button id="btn-sys-vol-down" class="btn-sys-tool" title="系统主音量 -">🔉 音量 -</button>
               <button id="btn-sys-vol-up" class="btn-sys-tool" title="系统主音量 +">🔊 音量 +</button>
               <button id="btn-sys-vol-mute" class="btn-sys-tool" title="系统全局静音切换">🔇 全局静音</button>
-              <!-- 安卓 APK 专属运维按钮 (无重启，无关机)：唤醒 (关闭黑场播放待机) 与 待机 (开启黑场停止放映) -->
-              <button id="btn-action-wakeup" class="btn-sys-tool" style="color:#10b981; border-color:rgba(16,185,129,0.45); background:rgba(16,185,129,0.12); font-weight:700; display:none;" title="大屏唤醒：关闭黑场，播放待机文件恢复放映">☀️ 唤醒</button>
+              <!-- 安卓 APK 专属运维按钮：唤醒按钮（仅保留空白图标，无功能） 与 待机 (开启黑场停止放映) -->
+              <button id="btn-action-wakeup" class="btn-sys-tool" style="color:#10b981; border-color:rgba(16,185,129,0.45); background:rgba(16,185,129,0.12); font-weight:700; display:none;" title="">☀️</button>
               <button id="btn-action-sleep" class="btn-sys-tool" style="color:#a855f7; border-color:rgba(168,85,247,0.45); background:rgba(168,85,247,0.12); font-weight:700; display:none;" title="大屏待机：开启黑场，停止放映">🌙 待机</button>
               <!-- Windows EXE 专属运维按钮 (无开机)：关机 (调用系统底层关机命令) 与 重启 (调用系统底层重启命令) -->
               <button id="btn-action-shutdown" class="btn-sys-tool" style="color:#ef4444; border-color:rgba(239,68,68,0.45); background:rgba(239,68,68,0.12); font-weight:700;" title="大屏主机安全关机：调用系统底层安全关机命令">🛑 关机</button>

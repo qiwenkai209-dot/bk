@@ -4467,23 +4467,11 @@
     }
   }
 
-  // APK 唤醒按键 (关闭黑场，播放待机文件)
+  // APK 唤醒按键 (按需求：删除唤醒按钮下所有功能，保留空白按钮图标)
   const btnActionWakeup = document.getElementById('btn-action-wakeup');
   if (btnActionWakeup) {
-    btnActionWakeup.addEventListener('click', async () => {
-      showToast('☀️ 正在唤醒大屏...', '大屏唤醒');
-      try {
-        await fetch('/api/system/wakeup', { method: 'POST' }).catch(() => {});
-        await fetch('/api/player/return_to_standby', { method: 'POST' }).catch(() => {});
-        // 双通道下发：播控信道直接解除黑场并强制起播待机目录
-        sendPlayerCommand('WAKEUP');
-        sendPlayerCommand('BLACKOUT', { blackout: false, enabled: false });
-        sendPlayerCommand('RETURN_TO_STANDBY');
-        sendPlayerCommand('PLAY_FOLDER', { folder: '待机' });
-        showToast('✅ 大屏已唤醒 (已解除黑场，恢复待机放映)', '唤醒就绪');
-      } catch (e) {
-        showToast('⚠️ 唤醒指令发送失败: ' + e, '异常');
-      }
+    btnActionWakeup.addEventListener('click', () => {
+      // 唤醒功能已彻底删除，不执行任何操作
     });
   }
 
@@ -4501,15 +4489,10 @@
     });
   }
 
-  // 兼容开机旧按钮 (若存在触发唤醒)
+  // 兼容开机旧按钮 (已彻底删除功能)
   const btnActionPowerOn = document.getElementById('btn-action-poweron');
   if (btnActionPowerOn) {
-    btnActionPowerOn.addEventListener('click', async () => {
-      try {
-        await fetch('/api/system/wakeup', { method: 'POST' }).catch(() => {});
-        showToast('✅ 大屏已唤醒 (关闭黑场，播放待机文件)', '开机就绪');
-      } catch (e) {}
-    });
+    btnActionPowerOn.addEventListener('click', () => {});
   }
 
   // EXE 关机按键 (调用系统底层安全关机)

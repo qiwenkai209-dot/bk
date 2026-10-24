@@ -738,11 +738,64 @@
     if (docTimer) { clearTimeout(docTimer); docTimer = null; }
   }
 
-  // 停止功能已完全删除，为兼容老接口/中控指令，安全转为平稳暂停
+  // 停止播放影片和音乐，并切至图片素材文件夹的第一个图片展示
   function stopMedia() {
-    console.log('[VisualCast] 停止指令已安全转为暂停');
-    pauseCurrentMedia();
+    console.log('[VisualCast] 执行停止功能：影片、音乐停止播放，播放图片素材文件夹第一张图片');
+    
+    // 1. 彻底停止正在播放的视频和音频，进度归零
+    const v = (videoA && videoA.classList.contains('active')) ? videoA : ((videoB && videoB.classList.contains('active')) ? videoB : activeVideoEl);
+    if (v) {
+      v.pause();
+      try { v.currentTime = 0; } catch (e) {}
+    }
+    if (mainAudioEl) {
+      mainAudioEl.pause();
+      try { mainAudioEl.currentTime = 0; } catch (e) {}
+    }
+
+    // 2. 清除黑场、定格与计时器，关闭文档
+    setBlackout(false);
+    dismissFreezeCanvas();
+    if (imageTimer) { clearTimeout(imageTimer); imageTimer = null; }
+    if (docTimer) { clearTimeout(docTimer); docTimer = null; }
     fetch('/api/player/close_ppt', { method: 'POST' }).catch(() => {});
+
+    // 3. 寻找“图片素材文件夹的第一个图片”
+    let targetImage = null;
+    const mediaPool = (cachedMediaList && cachedMediaList.length > 0) ? cachedMediaList : (currentPlaylist || []);
+
+    // 优先：查找 folder 名称为“图片”或包含“图片”的素材
+    targetImage = mediaPool.find(m => {
+      const f = (m.folder || '').trim();
+      const isImg = (m.type === 'image') || /\.(jpe?g|png|webp|bmp|gif)$/i.test(m.name || m.full_name || '');
+      return isImg && (f === '图片' || f.includes('图片') || f.toLowerCase().includes('image') || f.toLowerCase().includes('pic'));
+    });
+
+    // 备选 1：如果未找到，查找任何 folder 名称包含“图片”的第一个素材
+    if (!targetImage) {
+      targetImage = mediaPool.find(m => {
+        const f = (m.folder || '').trim();
+        return (f === '图片' || f.includes('图片')) && (m.type === 'image' || !m.type || m.type === 'other');
+      });
+    }
+
+    // 备选 2：如果仍未找到指定文件夹，在整个素材库中寻找第一张图片
+    if (!targetImage) {
+      targetImage = mediaPool.find(m => {
+        return (m.type === 'image') || /\.(jpe?g|png|webp|bmp|gif)$/i.test(m.name || m.full_name || '');
+      });
+    }
+
+    if (targetImage) {
+      console.log('[VisualCast] 已锁定图片素材文件夹第一张图片，立即切播:', targetImage.name || targetImage.full_name);
+      if (targetImage.folder) {
+        currentFolder = targetImage.folder;
+      }
+      switchMedia(targetImage, true, true);
+    } else {
+      console.warn('[VisualCast] 素材库中未检测到图片素材，已平稳暂停视频与音频放映');
+      pauseCurrentMedia();
+    }
   }
 
   function nextMedia() {
@@ -1992,8 +2045,10 @@ function applyCommand(cmd, directParams) {
         playCurrentMedia();
         break;
       case 'PAUSE':
-      case 'STOP':
         pauseCurrentMedia();
+        break;
+      case 'STOP':
+        stopMedia();
         break;
       case 'TOGGLE_PLAY':
       case 'PLAY_PAUSE':
@@ -2309,81 +2364,8 @@ function applyCommand(cmd, directParams) {
   window.triggerSystemPowerOff = triggerSystemPowerOff;
 
   function triggerSystemPowerOn() {
-    console.log('[VisualCast] 唤醒执行：解除黑场，立即起播待机目录素材');
-    if (powerOffTimer) {
-      clearTimeout(powerOffTimer);
-      powerOffTimer = null;
-    }
-    isSystemSleeping = false;
-    isExplicitlyStopped = false;
-    isBlackout = false;
-    document.body.classList.remove('system-sleeping');
-
-    // 1. 彻底关闭并隐藏过渡动画层
-    const powerLayer = document.getElementById('power-transition-layer');
-    if (powerLayer) {
-      powerLayer.classList.remove('active');
-      powerLayer.classList.add('hidden');
-      powerLayer.style.display = 'none';
-      const progressFill = powerLayer.querySelector('.wake-progress-fill');
-      if (progressFill) progressFill.style.width = '0%';
-    }
-
-    // 2. 彻底立即解除静帧与黑场屏蔽
-    setFreeze(false);
-    setBlackout(false);
-    if (blackoutMask) {
-      blackoutMask.classList.remove('active');
-      blackoutMask.style.display = 'none';
-      blackoutMask.style.opacity = '0';
-      blackoutMask.style.pointerEvents = 'none';
-    }
-
-    // 3. 恢复右上角触摸热区
-    if (touchTriggerEl) touchTriggerEl.style.display = 'block';
-
-    // 4. 强制返回待机目录并立即起播待机素材
-    returnToStandby(true);
-
-    // 再次绑定媒体就绪时的双保险黑场清除
-    const clearBlackoutInsurance = () => {
-      isSystemSleeping = false;
-      isBlackout = false;
-      setBlackout(false);
-      if (blackoutMask) {
-        blackoutMask.classList.remove('active');
-        blackoutMask.style.display = 'none';
-        blackoutMask.style.opacity = '0';
-        blackoutMask.style.pointerEvents = 'none';
-      }
-    };
-    videoA.addEventListener('playing', clearBlackoutInsurance, { once: true });
-    videoB.addEventListener('playing', clearBlackoutInsurance, { once: true });
-    imgEl.addEventListener('load', clearBlackoutInsurance, { once: true });
-
-    // 多重延时兜底确保黑场绝对解除
-    setTimeout(clearBlackoutInsurance, 100);
-    setTimeout(clearBlackoutInsurance, 300);
-    setTimeout(clearBlackoutInsurance, 800);
-    setTimeout(clearBlackoutInsurance, 1500);
-
-    // 5. 恢复字幕层
-    const subLayer = document.getElementById('subtitle-layer');
-    if (subLayer) {
-      subLayer.style.display = '';
-      if (currentSubtitleConfig && currentSubtitleConfig.enabled && currentSubtitleConfig.text) {
-        applySubtitleConfig(currentSubtitleConfig);
-      } else {
-        subLayer.classList.remove('active');
-        subLayer.innerHTML = '';
-      }
-    }
-
-    // 6. 恢复交互模式左右翻页按键 (若当前开启)
-    if (isTouchNavEnabled) {
-      if (touchNavPrev) touchNavPrev.style.display = 'flex';
-      if (touchNavNext) touchNavNext.style.display = 'flex';
-    }
+    console.log('[VisualCast] 唤醒功能已删除，大屏始终保持24小时常亮放映');
+    return;
   }
   window.triggerSystemPowerOn = triggerSystemPowerOn;
 
