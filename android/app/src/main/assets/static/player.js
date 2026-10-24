@@ -607,34 +607,72 @@
     }
   }
 
-  // 开始/重新播放 (停止后点击开始重新从头播放)
+  // 开始/重新播放 (从停止状态无缝重新起播，或暂停继续播放)
   function playCurrentMedia() {
+    console.log('[VisualCast] 执行开始/重新播放');
     setBlackout(false);
-    setFreeze(false);
 
     const needRestart = isExplicitlyStopped || isStoppedAtEnd;
     isExplicitlyStopped = false;
     isStoppedAtEnd = false;
 
-    if (currentMediaType === 'video' && activeVideoEl && activeVideoEl.src) {
-      const dur = activeVideoEl.duration || 0;
-      if (needRestart || activeVideoEl.ended || (dur > 0 && activeVideoEl.currentTime >= dur - 0.15)) {
-        console.log('[VisualCast] 点击开始重新播放：进度归零重新起播');
-        activeVideoEl.currentTime = 0;
+    const dismissFreeze = () => {
+      setFreeze(false);
+    };
+
+    if (currentMediaType === 'video') {
+      const dur = (activeVideoEl && activeVideoEl.duration) ? activeVideoEl.duration : 0;
+      const isNearEnd = dur > 0 && activeVideoEl && (activeVideoEl.currentTime >= dur - 0.5 || activeVideoEl.ended);
+
+      // 如果是停止后重新起播，或者视频已在结尾：
+      if (needRestart || isNearEnd) {
+        console.log('[VisualCast] 停止后重播或末尾重播，启动全新起播流:', currentMediaName);
+        dismissFreeze();
+        if (currentMediaName) {
+          switchMedia(currentMediaName, true, true);
+          return;
+        } else {
+          refreshPlaylist();
+          if (currentPlaylist.length > 0) {
+            switchMedia(currentPlaylist[currentPlayIndex] || currentPlaylist[0], true, true);
+            return;
+          }
+        }
       }
-      activeVideoEl.play().catch(() => {});
+
+      // 普通暂停恢复播放
+      dismissFreeze();
+      if (activeVideoEl && activeVideoEl.src) {
+        const p = activeVideoEl.play();
+        if (p !== undefined) {
+          p.catch(err => {
+            console.warn('[VisualCast] play() 调用异常，回退重载起播:', err);
+            if (currentMediaName) {
+              switchMedia(currentMediaName, true, true);
+            }
+          });
+        }
+      } else {
+        if (currentMediaName) {
+          switchMedia(currentMediaName, true, true);
+        }
+      }
     } else if (currentMediaType === 'audio' && mainAudioEl && mainAudioEl.src) {
+      dismissFreeze();
       const dur = mainAudioEl.duration || 0;
-      if (needRestart || mainAudioEl.ended || (dur > 0 && mainAudioEl.currentTime >= dur - 0.15)) {
+      if (needRestart || mainAudioEl.ended || (dur > 0 && mainAudioEl.currentTime >= dur - 0.5)) {
         mainAudioEl.currentTime = 0;
+        try { mainAudioEl.load(); } catch (e) {}
       }
       mainAudioEl.play().catch(() => {});
     } else if (currentMediaType === 'image') {
+      dismissFreeze();
       if (!imageTimer) scheduleImageNext();
     } else {
+      dismissFreeze();
       refreshPlaylist();
       if (currentPlaylist.length > 0) {
-        switchMedia(currentPlaylist[currentPlayIndex] || currentPlaylist[0], true);
+        switchMedia(currentPlaylist[currentPlayIndex] || currentPlaylist[0], true, true);
       }
     }
   }
@@ -647,20 +685,55 @@
     if (docTimer) { clearTimeout(docTimer); docTimer = null; }
   }
 
-  // 停止播放 (影片定位到最后一帧并暂停，绝不黑场，点击开始重新播放)
+  // 停止播放 (影片定格在当前画面/最后一帧，绝不黑屏，点击开始重新播放)
   function stopMedia() {
-    console.log('[VisualCast] 执行停止播放：定格在最后一帧，等待点击开始重新播放');
+    console.log('[VisualCast] 执行停止播放：定格画面，绝不黑屏，等待点击开始重新播放');
     isExplicitlyStopped = true;
     isStoppedAtEnd = true;
     if (imageTimer) { clearTimeout(imageTimer); imageTimer = null; }
     if (docTimer) { clearTimeout(docTimer); docTimer = null; }
 
+    // 1. 强制关闭黑场遮罩，确保大屏 100% 常亮
+    setBlackout(false);
+
+    // 2. 如果是视频，优先稳妥定格当前画面并防黑屏
     if (currentMediaType === 'video' && activeVideoEl) {
+      // 关键防黑屏保底：利用 freezeCanvas 将当前正在展示的高清画面立刻定格在顶层，绝不漏出黑屏！
+      if (freezeCanvas && activeVideoEl.readyState >= 2) {
+        try {
+          const ctx = freezeCanvas.getContext('2d');
+          freezeCanvas.width = window.innerWidth || 1920;
+          freezeCanvas.height = window.innerHeight || 1080;
+          ctx.drawImage(activeVideoEl, 0, 0, freezeCanvas.width, freezeCanvas.height);
+          freezeCanvas.classList.add('active');
+          freezeCanvas.style.display = 'block';
+        } catch (e) {
+          console.warn('[VisualCast] freezeCanvas 绘制异常:', e);
+        }
+      }
       activeVideoEl.pause();
+
       const dur = activeVideoEl.duration;
-      if (dur && !isNaN(dur) && dur > 0) {
-        // 定位到影片距尾端 0.05 秒的最后一帧位置，画面清晰保持末尾画面
-        activeVideoEl.currentTime = Math.max(0, dur - 0.05);
+      // 若视频具备有效时长，且当前并未处于结尾，可安全定位到末尾（保留 0.3s 安全余量，杜绝 EOF 硬解黑帧）
+      if (dur && !isNaN(dur) && dur > 1.0) {
+        const safeTargetTime = Math.max(0, dur - 0.3);
+        try {
+          // 仅在距离末尾较远时执行平滑跳尾
+          if (Math.abs(activeVideoEl.currentTime - safeTargetTime) > 0.5) {
+            activeVideoEl.currentTime = safeTargetTime;
+            // 当 seek 完成后，更新 freezeCanvas 为真正末帧画面
+            const onSeekEnd = () => {
+              activeVideoEl.removeEventListener('seeked', onSeekEnd);
+              if (freezeCanvas && activeVideoEl && !activeVideoEl.ended) {
+                try {
+                  const ctx = freezeCanvas.getContext('2d');
+                  ctx.drawImage(activeVideoEl, 0, 0, freezeCanvas.width, freezeCanvas.height);
+                } catch (err) {}
+              }
+            };
+            activeVideoEl.addEventListener('seeked', onSeekEnd, { once: true });
+          }
+        } catch (e) {}
       }
     } else if (activeVideoEl) {
       activeVideoEl.pause();
@@ -669,13 +742,12 @@
     if (mainAudioEl) {
       mainAudioEl.pause();
       const dur = mainAudioEl.duration;
-      if (dur && !isNaN(dur) && dur > 0) {
-        mainAudioEl.currentTime = Math.max(0, dur - 0.05);
+      if (dur && !isNaN(dur) && dur > 1.0) {
+        try { mainAudioEl.currentTime = Math.max(0, dur - 0.3); } catch (e) {}
       }
     }
 
     fetch('/api/player/close_ppt', { method: 'POST' }).catch(() => {});
-    setBlackout(false); // 保持最后一帧常亮
   }
 
   function nextMedia() {
@@ -2656,7 +2728,16 @@ function applyCommand(cmd, directParams) {
       let vol = Math.round(activeVideoEl.volume * 100);
       let isMuted = activeVideoEl.muted;
 
-      if (currentMediaType === 'audio' && mainAudioEl) {
+      if (isExplicitlyStopped || isStoppedAtEnd) {
+        state = 'STOPPED';
+        if (currentMediaType === 'audio' && mainAudioEl) {
+          currTime = mainAudioEl.currentTime || 0;
+          dur = mainAudioEl.duration || 0;
+        } else if (currentMediaType === 'video' && activeVideoEl) {
+          currTime = activeVideoEl.currentTime || 0;
+          dur = activeVideoEl.duration || 0;
+        }
+      } else if (currentMediaType === 'audio' && mainAudioEl) {
         state = mainAudioEl.paused ? (mainAudioEl.currentTime === 0 ? 'STOPPED' : 'PAUSED') : 'PLAYING';
         currTime = mainAudioEl.currentTime || 0;
         dur = mainAudioEl.duration || 0;
