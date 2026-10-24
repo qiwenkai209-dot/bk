@@ -322,10 +322,27 @@
           btnMute.textContent = p.muted ? '🔇' : '🔊';
         }
 
-        // 按钮外观
         if (btnPlay) btnPlay.textContent = p.state === 'PLAYING' ? '⏸' : '▶';
         if (btnBlackout) btnBlackout.classList.toggle('active', !!p.blackout);
         if (btnFreeze) btnFreeze.classList.toggle('active', !!p.freeze);
+
+        // 待机与唤醒运维按钮状态联动
+        const isOpsSleeping = !!p.is_sleeping || (!!p.blackout && p.state === 'STOPPED');
+        const btnOpsWake = document.getElementById('btn-action-wakeup');
+        const btnOpsSleep = document.getElementById('btn-action-sleep');
+        if (btnOpsWake && btnOpsSleep) {
+          if (isOpsSleeping) {
+            btnOpsWake.style.boxShadow = '0 0 10px rgba(16, 185, 129, 0.6)';
+            btnOpsWake.style.opacity = '1';
+            btnOpsSleep.style.boxShadow = 'none';
+            btnOpsSleep.style.opacity = '0.7';
+          } else {
+            btnOpsWake.style.boxShadow = 'none';
+            btnOpsWake.style.opacity = '0.7';
+            btnOpsSleep.style.boxShadow = '0 0 10px rgba(168, 85, 247, 0.4)';
+            btnOpsSleep.style.opacity = '1';
+          }
+        }
 
         // 循环播放模式
         if (p.loop_mode) {
@@ -714,17 +731,23 @@
     btnToggleSleep.addEventListener('click', async () => {
       const targetSleep = !isDisplaySleeping;
       try {
-        const url = targetSleep ? '/api/system/sleep' : '/api/system/wakeup';
-        const res = await fetch(url, { method: 'POST' });
-        const data = await res.json();
-        if (data.status === 'ok') {
-          isDisplaySleeping = targetSleep;
-          showToast(targetSleep ? '🌙 待机功能已删除，商显大屏保持常亮放映' : '☀️ 大屏正常放映中');
+        if (targetSleep) {
+          await sendPlayerCommand('STOP');
+          await sendPlayerCommand('BLACKOUT', { blackout: true });
+          await fetch('/api/system/sleep', { method: 'POST' });
+          isDisplaySleeping = true;
+          updateSleepBtnUI(true);
+          showToast('🌙 大屏已进入待机：停止放映并开启黑场', '大屏待机');
         } else {
-          showToast('操作失败: ' + data.message, '错误');
+          await sendPlayerCommand('BLACKOUT', { blackout: false });
+          await sendPlayerCommand('RETURN_TO_STANDBY');
+          await fetch('/api/system/wakeup', { method: 'POST' });
+          isDisplaySleeping = false;
+          updateSleepBtnUI(false);
+          showToast('☀️ 大屏已唤醒：解除黑场并播放待机素材', '大屏唤醒');
         }
       } catch (e) {
-        showToast('休眠/唤醒指令异常: ' + e, '错误');
+        showToast('休眠/唤醒指令异常: ' + e, '系统提示');
       }
     });
   }
@@ -4467,24 +4490,34 @@
     }
   }
 
-  // APK 唤醒按键 (按需求：删除唤醒按钮下所有功能，保留空白按钮图标)
+  // APK 唤醒按键 (解除黑场，播放待机素材)
   const btnActionWakeup = document.getElementById('btn-action-wakeup');
   if (btnActionWakeup) {
-    btnActionWakeup.addEventListener('click', () => {
-      // 唤醒功能已彻底删除，不执行任何操作
+    btnActionWakeup.addEventListener('click', async () => {
+      showToast('☀️ 正在唤醒大屏...', '大屏唤醒');
+      try {
+        await sendPlayerCommand('BLACKOUT', { blackout: false });
+        await sendPlayerCommand('RETURN_TO_STANDBY');
+        await fetch('/api/system/wakeup', { method: 'POST' }).catch(() => {});
+        showToast('✅ 大屏已唤醒：解除黑场并恢复播放待机素材', '大屏唤醒');
+      } catch (e) {
+        showToast('⚠️ 唤醒异常: ' + e, '唤醒提示');
+      }
     });
   }
 
-  // APK 待机按键 (保留按钮，删除实际功能，保持常亮放映)
+  // APK 待机按键 (停止放映，开启黑场)
   const btnActionSleep = document.getElementById('btn-action-sleep');
   if (btnActionSleep) {
     btnActionSleep.addEventListener('click', async () => {
-      showToast('🌙 待机功能已旁路，商显大屏保持常亮放映', '大屏待机');
+      showToast('🌙 正在将大屏切入待机模式...', '大屏待机');
       try {
+        await sendPlayerCommand('STOP');
+        await sendPlayerCommand('BLACKOUT', { blackout: true });
         await fetch('/api/system/sleep', { method: 'POST' }).catch(() => {});
-        showToast('✅ 商显大屏保持24小时常亮放映中', '常亮放映');
+        showToast('✅ 大屏已进入待机：停止放映并开启黑场', '大屏待机');
       } catch (e) {
-        showToast('⚠️ 提示: ' + e, '异常');
+        showToast('⚠️ 待机异常: ' + e, '待机提示');
       }
     });
   }
