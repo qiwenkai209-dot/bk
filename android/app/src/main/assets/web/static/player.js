@@ -2272,27 +2272,31 @@ function applyCommand(cmd, directParams) {
       blackoutMask.style.pointerEvents = 'none';
     }
 
-    // 快速兜底立即响应：如果内存已有列表，0 延时立即切播，杜绝等待 fetch api 网络延迟
     refreshPlaylist();
-    if (currentPlaylist.length > 0) {
+    const targetItem = (currentPlaylist.length > 0) ? currentPlaylist[0] : (idleMedia ? idleMedia : (cachedMediaList && cachedMediaList.length > 0 ? cachedMediaList[0] : null));
+    const targetName = typeof targetItem === 'object' ? (targetItem ? targetItem.name : '') : (targetItem || '');
+
+    // 关键防抖防重：若大屏已在正常播映待机素材，且正在播放中，绝对不要粗暴切断进度重新从 0 秒播！
+    const isAlreadyPlayingTarget = (currentMediaName === targetName && activeVideoEl && !activeVideoEl.paused && !activeVideoEl.ended && activeVideoEl.currentTime > 0.05);
+    if (!isAlreadyPlayingTarget) {
       currentPlayIndex = 0;
-      switchMedia(currentPlaylist[0], true, true, true);
-    } else if (idleMedia) {
-      switchMedia(idleMedia, true, true, true);
-    } else if (cachedMediaList && cachedMediaList.length > 0) {
-      currentPlayIndex = 0;
-      switchMedia(cachedMediaList[0], true, true, true);
+      if (targetItem) {
+        switchMedia(targetItem, true, false, true);
+      } else {
+        switchMedia({ name: 'default_standby.jpg', url: '/static/default_standby.jpg', type: 'image' }, true, false, true);
+      }
     } else {
-      switchMedia({ name: 'default_standby.jpg', url: '/static/default_standby.jpg', type: 'image' }, true, true, true);
+      console.log('[VisualCast] 待机素材正在放映中 (' + targetName + ')，保持播放进度不重置');
     }
 
-    // 随后异步拉取最新媒体库做增量校验，确保真实待机素材立即起播
+    // 随后异步拉取最新媒体库做增量校验，仅在目标素材真实变更时才平滑切播
     updateMediaLibraryCache().then(() => {
       refreshPlaylist();
-      let realTarget = (currentPlaylist && currentPlaylist.length > 0) ? currentPlaylist[0] : ((cachedMediaList && cachedMediaList.length > 0) ? cachedMediaList[0] : null);
-      if (realTarget) {
+      const updatedTarget = (currentPlaylist && currentPlaylist.length > 0) ? currentPlaylist[0] : ((cachedMediaList && cachedMediaList.length > 0) ? cachedMediaList[0] : null);
+      const updatedName = typeof updatedTarget === 'object' ? (updatedTarget ? updatedTarget.name : '') : (updatedTarget || '');
+      if (updatedTarget && currentMediaName !== updatedName) {
         currentPlayIndex = 0;
-        switchMedia(realTarget, true, true, true);
+        switchMedia(updatedTarget, true, false, true);
       }
     }).catch(() => {});
   }
@@ -2371,7 +2375,7 @@ function applyCommand(cmd, directParams) {
     isBlackout = false;
     setBlackout(false);
     returnToStandby(true);
-    fetch('/api/system/wakeup', { method: 'POST' }).catch(() => {});
+    // 严格斩断死循环回路：绝不再调用 fetch('/api/system/wakeup')！
   }
   window.triggerSystemPowerOn = triggerSystemPowerOn;
 

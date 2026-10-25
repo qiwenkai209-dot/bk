@@ -546,16 +546,28 @@ public class MainActivity extends AppCompatActivity {
 
     public void triggerSleepTransition(final boolean sleep) {
         if (sleep) {
+            if (isScreenAsleep) return; // 已经是待机黑场状态，防重防抖
             isScreenAsleep = true;
             com.visualcast.player.server.HttpRouter.updateBlackoutState(true);
             runOnUiThread(() -> {
                 if (webView != null) {
-                    String js = "try { if (window.applyCommand) window.applyCommand('STOP'); if (window.setBlackout) window.setBlackout(true); if (window.applyCommand) window.applyCommand('SLEEP'); } catch(e){}";
+                    String js = "try { if (window.applyCommand) window.applyCommand('STOP'); if (window.setBlackout) window.setBlackout(true); } catch(e){}";
                     webView.evaluateJavascript(js, null);
                 }
             });
             return;
         }
+
+        // 唤醒逻辑：如果当前系统本来就在正常放映中（未进入待机），仅确保黑场解除，绝不强行重播视频
+        if (!isScreenAsleep) {
+            runOnUiThread(() -> {
+                if (webView != null) {
+                    webView.evaluateJavascript("try { if (window.setBlackout) window.setBlackout(false); } catch(e){}", null);
+                }
+            });
+            return;
+        }
+
         isScreenAsleep = false;
         com.visualcast.player.server.HttpRouter.setGlobalSleepMode(false);
         com.visualcast.player.server.HttpRouter.updateBlackoutState(false);
@@ -592,13 +604,13 @@ public class MainActivity extends AppCompatActivity {
                 hideSystemUI();
             } catch (Exception ignored) {}
 
-            // 4. WebView 恢复渲染与起播待机素材
+            // 4. WebView 恢复渲染并平滑起播待机素材 (消除多重重复注入)
             if (webView != null) {
                 try {
                     webView.onResume();
                     webView.resumeTimers();
                 } catch (Exception ignored) {}
-                String js = "try { if (window.setBlackout) window.setBlackout(false); if (window.triggerSystemPowerOn) window.triggerSystemPowerOn(); if (window.returnToStandby) window.returnToStandby(true); if (window.applyCommand) window.applyCommand('WAKEUP'); } catch(e){}";
+                String js = "try { if (window.setBlackout) window.setBlackout(false); if (window.returnToStandby) window.returnToStandby(true); } catch(e){}";
                 webView.evaluateJavascript(js, null);
             }
         });

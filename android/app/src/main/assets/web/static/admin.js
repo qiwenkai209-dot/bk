@@ -4496,9 +4496,7 @@
     btnActionWakeup.addEventListener('click', async () => {
       showToast('☀️ 正在唤醒大屏...', '大屏唤醒');
       try {
-        await sendPlayerCommand('BLACKOUT', { blackout: false });
-        await sendPlayerCommand('RETURN_TO_STANDBY');
-        await fetch('/api/system/wakeup', { method: 'POST' }).catch(() => {});
+        await fetch('/api/system/wakeup', { method: 'POST' });
         showToast('✅ 大屏已唤醒：解除黑场并恢复播放待机素材', '大屏唤醒');
       } catch (e) {
         showToast('⚠️ 唤醒异常: ' + e, '唤醒提示');
@@ -4512,9 +4510,7 @@
     btnActionSleep.addEventListener('click', async () => {
       showToast('🌙 正在将大屏切入待机模式...', '大屏待机');
       try {
-        await sendPlayerCommand('STOP');
-        await sendPlayerCommand('BLACKOUT', { blackout: true });
-        await fetch('/api/system/sleep', { method: 'POST' }).catch(() => {});
+        await fetch('/api/system/sleep', { method: 'POST' });
         showToast('✅ 大屏已进入待机：停止放映并开启黑场', '大屏待机');
       } catch (e) {
         showToast('⚠️ 待机异常: ' + e, '待机提示');
