@@ -1678,6 +1678,9 @@ public class HttpRouter {
                         writeStringToFile(f, b.toString());
                         playerConfig.put("scheduled_shutdown", b);
                         savePlayerConfig();
+                        ScheduledShutdownManager.lastExecutedBootStamp = "";
+                        ScheduledShutdownManager.lastExecutedShutdownStamp = "";
+                        ScheduledShutdownManager.todayCancelled = false;
                     } catch(Exception ignored) {}
                     JSONObject res = new JSONObject();
                     res.put("status", "ok");

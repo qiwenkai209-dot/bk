@@ -3257,14 +3257,13 @@ setTimeout(enforceLicenseProtection, 500);
 setInterval(enforceLicenseProtection, 10000);
 
 
-// ===================== 定时开关机自动守护轮询 =====================
-let lastSchedCheckMinute = -1;
+// ===================== 定时开关机自动守护轮询 (重调用唤醒按钮标准逻辑) =====================
+let lastExecutedBootMinuteStamp = '';
+let lastExecutedShutdownMinuteStamp = '';
 let isScheduledPowerOff = false;
 async function checkScheduledPowerDaemon() {
   try {
     const now = new Date();
-    const curMin = now.getHours() * 60 + now.getMinutes();
-
     const res = await fetch('/api/system/scheduled_shutdown');
     const json = await res.json();
     if (json.status !== 'ok' || !json.data || !json.data.config) return;
@@ -3286,17 +3285,22 @@ async function checkScheduledPowerDaemon() {
     const shutdownTimeStr = cfg.shutdown_time || cfg.time || '21:30';
     const bootTimeStr = cfg.boot_time || '08:30';
 
-    if (curMin === lastSchedCheckMinute) return;
-    lastSchedCheckMinute = curMin;
+    const todayDateStr = `${now.getFullYear()}-${now.getMonth()+1}-${now.getDate()}`;
+    const curBootStamp = `${todayDateStr}_${bootTimeStr}`;
+    const curShutdownStamp = `${todayDateStr}_${shutdownTimeStr}`;
 
-    const isAndroid = /Android/i.test(navigator.userAgent);
     const bootEnabled = cfg.boot_enabled !== false;
-    if (curTimeStr === shutdownTimeStr && !isScheduledPowerOff) {
-      console.log(`[VisualCast] ⏰ 定时关机时间到达 (${shutdownTimeStr})，触发黑场停播！`);
+    // 1. 定时关机到达：直接执行待机按钮动作 (停止放映 + 开启黑场)
+    if (curTimeStr === shutdownTimeStr && curShutdownStamp !== lastExecutedShutdownMinuteStamp) {
+      lastExecutedShutdownMinuteStamp = curShutdownStamp;
+      console.log(`[VisualCast] ⏰ 定时闭馆关机时间到达 (${shutdownTimeStr})，重调用【待机按钮】标准逻辑！`);
       isScheduledPowerOff = true;
       triggerSystemPowerOff();
-    } else if (bootEnabled && curTimeStr === bootTimeStr && (isScheduledPowerOff || isSystemSleeping || isBlackout)) {
-      console.log(`[VisualCast] ⏰ 定时开机时间到达 (${bootTimeStr})，恢复待机放映！`);
+    }
+    // 2. 定时开机到达：直接执行唤醒按钮动作 (解除黑场 + 播放待机素材 + 唤醒屏幕常亮)
+    else if (bootEnabled && curTimeStr === bootTimeStr && curBootStamp !== lastExecutedBootMinuteStamp) {
+      lastExecutedBootMinuteStamp = curBootStamp;
+      console.log(`[VisualCast] ☀️ 定时开馆开机时间到达 (${bootTimeStr})，重调用【唤醒按钮】标准逻辑！`);
       isScheduledPowerOff = false;
       triggerSystemPowerOn();
     }
