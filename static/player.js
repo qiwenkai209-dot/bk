@@ -2375,58 +2375,70 @@ function applyCommand(cmd, directParams) {
   }
   window.triggerSystemPowerOn = triggerSystemPowerOn;
 
-  // 7. ScreenStream 演播级高清实时回显抓帧 (960x540 非阻塞高性能流水线，零延时无卡顿)
+  // 7. ScreenStream 演播级高清实时回显抓帧 (640x360 智能节能按需流水线，零延时无卡顿，无监看时 0% 开销)
   let lastEchoTime = 0;
   let vinylAngle = 0;
-  isEchoActive = true; // 默认就绪，确保后台与中控随时打开皆有首帧回显
+  isEchoActive = false; // 严格默认静默：无后台监看时彻底休眠，0% CPU 占用
   let echoScheduledTimer = null;
   let isEchoPosting = false; // 飞传状态守卫：杜绝网络并发堆叠与请求排队
   let lastEchoMediaKey = '';
 
   function scheduleNextEcho() {
-    if (echoScheduledTimer) clearTimeout(echoScheduledTimer);
-    // 动态智能刷新节拍：
-    // - 动态视频/音频律动：280ms (约 3.5 FPS，丝滑流畅且 CPU 占用直降 70%)
-    // - 静态图片/黑场/待机：800ms (极大释放大屏算力与网络带宽)
-    // - 无人监看时：2500ms 深度节能休眠
-    let delay = 2500;
-    if (isEchoActive) {
-      const isDynamic = (currentMediaType === 'video' || currentMediaType === 'stream' || currentMediaType === 'audio');
-      delay = isDynamic ? 280 : 800;
+    if (echoScheduledTimer) {
+      clearTimeout(echoScheduledTimer);
+      echoScheduledTimer = null;
+    }
+    // 关键核心节能机制：若后台无管理员监看，彻底停止抓帧调度，0% CPU/GPU 占用！
+    if (!isEchoActive) {
+      return;
+    }
+    // 动态智能刷新节拍（仅在有监看时按需运行）：
+    // - 黑场/待机：3500ms (单次上报黑场静态状态即可)
+    // - 静态图片/文档/网页：1000ms (1 FPS 清晰省电)
+    // - 动态视频/流媒体/音频：380ms (约 2.6 FPS，极速流畅且 CPU 占用暴降)
+    let delay = 380;
+    if (isBlackout || isSystemSleeping) {
+      delay = 3500;
+    } else if (currentMediaType === 'image' || currentMediaType === 'ppt' || currentMediaType === 'frame') {
+      delay = 1000;
+    } else {
+      delay = 380;
     }
     echoScheduledTimer = setTimeout(() => {
-      grabEchoFrame();
-      scheduleNextEcho();
+      if (isEchoActive) {
+        grabEchoFrame();
+        scheduleNextEcho();
+      }
     }, delay);
   }
 
   function grabEchoFrame() {
-    if (!echoCanvas || !echoCtx || isEchoPosting) return;
+    if (!echoCanvas || !echoCtx || isEchoPosting || !isEchoActive) return;
     const now = Date.now();
-    const minInterval = isEchoActive ? 240 : 1800;
+    const minInterval = (isBlackout || isSystemSleeping) ? 2500 : 300;
     if (now - lastEchoTime < minInterval) return;
 
     try {
-      const W = echoCanvas.width || 960;
-      const H = echoCanvas.height || 540;
+      const W = echoCanvas.width || 640;
+      const H = echoCanvas.height || 360;
       let frameData = '';
 
-      if (isBlackout) {
+      if (isBlackout || isSystemSleeping) {
         echoCtx.fillStyle = '#020617';
         echoCtx.fillRect(0, 0, W, H);
         echoCtx.fillStyle = '#64748b';
-        echoCtx.font = 'bold 24px sans-serif';
+        echoCtx.font = 'bold 22px sans-serif';
         echoCtx.textAlign = 'center';
         echoCtx.fillText('🌙 大屏待机黑场中', W / 2, H / 2);
         echoCtx.textAlign = 'left';
-        frameData = echoCanvas.toDataURL('image/jpeg', 0.68);
+        frameData = echoCanvas.toDataURL('image/jpeg', 0.52);
       } else if (currentMediaType === 'audio') {
         vinylAngle = (vinylAngle + 12) % 360;
         echoCtx.fillStyle = '#060b19';
         echoCtx.fillRect(0, 0, W, H);
         
         // 蓝光科技放射光晕
-        const grad = echoCtx.createRadialGradient(W / 2, 210, 15, W / 2, 210, 300);
+        const grad = echoCtx.createRadialGradient(W / 2, 140, 10, W / 2, 140, 200);
         grad.addColorStop(0, 'rgba(0, 240, 255, 0.32)');
         grad.addColorStop(1, 'rgba(6, 11, 25, 0)');
         echoCtx.fillStyle = grad;
@@ -2434,17 +2446,17 @@ function applyCommand(cmd, directParams) {
 
         // 旋转黑胶唱片
         echoCtx.save();
-        echoCtx.translate(W / 2, 195);
+        echoCtx.translate(W / 2, 130);
         echoCtx.rotate((vinylAngle * Math.PI) / 180);
         echoCtx.beginPath();
-        echoCtx.arc(0, 0, 128, 0, Math.PI * 2);
+        echoCtx.arc(0, 0, 85, 0, Math.PI * 2);
         echoCtx.fillStyle = '#0b1120';
         echoCtx.fill();
         echoCtx.strokeStyle = 'rgba(255,255,255,0.18)';
         echoCtx.lineWidth = 2;
         echoCtx.stroke();
 
-        [108, 90, 72, 54].forEach(r => {
+        [70, 56, 42, 30].forEach(r => {
           echoCtx.beginPath();
           echoCtx.arc(0, 0, r, 0, Math.PI * 2);
           echoCtx.strokeStyle = 'rgba(255,255,255,0.08)';
@@ -2453,41 +2465,41 @@ function applyCommand(cmd, directParams) {
         });
 
         echoCtx.beginPath();
-        echoCtx.arc(0, 0, 38, 0, Math.PI * 2);
+        echoCtx.arc(0, 0, 24, 0, Math.PI * 2);
         echoCtx.fillStyle = '#0284c7';
         echoCtx.fill();
         echoCtx.strokeStyle = '#38bdf8';
-        echoCtx.lineWidth = 3;
+        echoCtx.lineWidth = 2;
         echoCtx.stroke();
         echoCtx.restore();
 
         // 音乐标签与曲目名
         echoCtx.fillStyle = '#38bdf8';
-        echoCtx.font = 'bold 20px sans-serif';
+        echoCtx.font = 'bold 15px sans-serif';
         echoCtx.textAlign = 'center';
-        echoCtx.fillText('♪ 高保真音乐视窗 · 立体声播映中', W / 2, 365);
+        echoCtx.fillText('♪ 高保真音乐视窗 · 立体声播映中', W / 2, 245);
 
         echoCtx.fillStyle = '#ffffff';
-        echoCtx.font = 'bold 26px sans-serif';
-        const displayTitle = (currentMediaName && currentMediaName.length > 32) ? (currentMediaName.substring(0, 30) + '...') : (currentMediaName || '音频素材');
-        echoCtx.fillText(displayTitle, W / 2, 410);
+        echoCtx.font = 'bold 18px sans-serif';
+        const displayTitle = (currentMediaName && currentMediaName.length > 28) ? (currentMediaName.substring(0, 26) + '...') : (currentMediaName || '音频素材');
+        echoCtx.fillText(displayTitle, W / 2, 275);
 
-        // 频谱律动波形柱
-        const startX = (W - 36 * 22) / 2;
-        for (let i = 0; i < 36; i++) {
-          const h = 12 + Math.abs(Math.sin((now / 140) + i * 0.35)) * 38;
-          const barGrad = echoCtx.createLinearGradient(0, 490 - h, 0, 490);
+        // 频谱律动波形柱 (24 柱精简算力)
+        const startX = (W - 24 * 16) / 2;
+        for (let i = 0; i < 24; i++) {
+          const h = 8 + Math.abs(Math.sin((now / 150) + i * 0.4)) * 26;
+          const barGrad = echoCtx.createLinearGradient(0, 330 - h, 0, 330);
           barGrad.addColorStop(0, '#00f0ff');
           barGrad.addColorStop(1, '#0284c7');
           echoCtx.fillStyle = barGrad;
-          echoCtx.fillRect(startX + i * 22, 490 - h, 14, h);
+          echoCtx.fillRect(startX + i * 16, 330 - h, 10, h);
         }
         echoCtx.textAlign = 'left';
-        frameData = echoCanvas.toDataURL('image/jpeg', 0.68);
+        frameData = echoCanvas.toDataURL('image/jpeg', 0.52);
       } else if (currentMediaType === 'image' && imgEl && imgEl.complete && imgEl.naturalWidth > 0) {
         try {
           echoCtx.drawImage(imgEl, 0, 0, W, H);
-          frameData = echoCanvas.toDataURL('image/jpeg', 0.68);
+          frameData = echoCanvas.toDataURL('image/jpeg', 0.52);
         } catch (err) {
           frameData = renderEchoFallback('🖼️ 图片展项放映中', currentMediaName);
         }
@@ -2496,7 +2508,7 @@ function applyCommand(cmd, directParams) {
         if (activeVideoEl && !activeVideoEl.paused && activeVideoEl.readyState >= 2) {
           try {
             echoCtx.drawImage(activeVideoEl, 0, 0, W, H);
-            frameData = echoCanvas.toDataURL('image/jpeg', 0.68);
+            frameData = echoCanvas.toDataURL('image/jpeg', 0.52);
             ok = true;
           } catch (err) {}
         }
@@ -2571,17 +2583,17 @@ function applyCommand(cmd, directParams) {
       echoCtx.font = 'bold 18px sans-serif';
       echoCtx.fillText('✔ 外部演示引擎全屏呈现中 · 遥控切播任意素材即刻无感返回主视窗', 60, H - 48);
 
-      return echoCanvas.toDataURL('image/jpeg', 0.80);
+      return echoCanvas.toDataURL('image/jpeg', 0.52);
     } catch (e) {
       return renderEchoFallback('📑 演示放映中', name);
     }
   }
 
-  // 高保真网页 / H5 展项全屏视窗回显生成器 (960x540)
+  // 高保真网页 / H5 展项全屏视窗回显生成器 (640x360 智能低耗)
   function renderEchoWebWindow(name) {
     try {
-      const W = echoCanvas.width || 960;
-      const H = echoCanvas.height || 540;
+      const W = echoCanvas.width || 640;
+      const H = echoCanvas.height || 360;
       echoCtx.fillStyle = '#050811';
       echoCtx.fillRect(0, 0, W, H);
 
@@ -2622,7 +2634,7 @@ function applyCommand(cmd, directParams) {
       echoCtx.font = '20px sans-serif';
       echoCtx.fillText('正在以全屏沉浸模式渲染 Web 交互内容 · 实时触控与指令高速响应中', 110, 310);
 
-      return echoCanvas.toDataURL('image/jpeg', 0.80);
+      return echoCanvas.toDataURL('image/jpeg', 0.52);
     } catch (e) {
       return renderEchoFallback('🌐 网页呈现中', name);
     }
@@ -2630,8 +2642,8 @@ function applyCommand(cmd, directParams) {
 
   function renderEchoFallback(label, name) {
     try {
-      const W = echoCanvas.width || 960;
-      const H = echoCanvas.height || 540;
+      const W = echoCanvas.width || 640;
+      const H = echoCanvas.height || 360;
       echoCtx.fillStyle = '#060b19';
       echoCtx.fillRect(0, 0, W, H);
 
@@ -2660,14 +2672,13 @@ function applyCommand(cmd, directParams) {
       echoCtx.font = 'bold 18px sans-serif';
       echoCtx.fillText('✔ ScreenStream 零延时动图流连通正常 · 演播级高清画面实时映射', 100, 430);
 
-      return echoCanvas.toDataURL('image/jpeg', 0.80);
+      return echoCanvas.toDataURL('image/jpeg', 0.52);
     } catch (err) {
       return '';
     }
   }
 
-  // 启动 ScreenStream 演播级自适应回显高频调度 (零积压无延时)
-  scheduleNextEcho();
+  // 节能设计：默认静默休眠，仅当后台监看建立时由 syncLoop 按需唤醒
   // 8. 检查 U 盘插入事件并触发气泡 (开机首次启动静默记录基准，绝不误弹历史气泡；仅在真实热插拔并有更新时留一个提醒)
   async function checkUsbStatus() {
     try {
@@ -2694,7 +2705,7 @@ function applyCommand(cmd, directParams) {
     } catch (e) {}
   }
 
-  // 9. 指令拉取与状态上报合一通道 (250ms 黄金周期，兼顾毫秒级中控响应与极低系统负载)
+  // 9. 指令拉取与状态上报合一通道 (智能自适应周期：放映时 650ms 黄金中控响应，黑场待机时 1800ms 深度节能休眠)
   async function syncLoop() {
     try {
       let state = 'PAUSED';
@@ -2742,7 +2753,22 @@ function applyCommand(cmd, directParams) {
       });
       const pullData = await syncRes.json();
       if (pullData.status === 'ok') {
-        isEchoActive = !!pullData.need_echo;
+        // 核心节能按需控制：无管理员监看时自动深度休眠，有管理员时无延时唤醒
+        const needEcho = !!pullData.need_echo;
+        if (needEcho !== isEchoActive) {
+          isEchoActive = needEcho;
+          if (isEchoActive) {
+            console.log('[VisualCast 节能引擎] 后台监看上线，唤醒高清抓帧');
+            scheduleNextEcho();
+          } else {
+            console.log('[VisualCast 节能引擎] 后台监看离线，抓帧流水线彻底休眠 (0% CPU/GPU)');
+            if (echoScheduledTimer) {
+              clearTimeout(echoScheduledTimer);
+              echoScheduledTimer = null;
+            }
+          }
+        }
+
         if (pullData.mode) currentMode = pullData.mode;
         if (pullData.idle_media) idleMedia = pullData.idle_media;
         if (pullData.idle_timeout !== undefined) idleTimeout = pullData.idle_timeout;
@@ -2789,9 +2815,6 @@ function applyCommand(cmd, directParams) {
           }
         }
 
-        // 待机/休眠功能已删除，始终保持常亮放映
-        isSystemSleeping = false;
-
         if (pullData.commands && pullData.commands.length > 0) {
           pullData.commands.forEach(cmd => applyCommand(cmd));
         }
@@ -2799,7 +2822,11 @@ function applyCommand(cmd, directParams) {
 
     } catch (e) {
     } finally {
-      setTimeout(syncLoop, 600);
+      // 自适应低功耗轮询：
+      // - 黑场待机或休眠中：1800ms (大幅放缓轮询，彻底让 CPU/网卡进入节能休眠)
+      // - 正常展厅放映中：650ms (保持黄金中控毫秒级响应)
+      const delay = (isSystemSleeping || isBlackout) ? 1800 : 650;
+      setTimeout(syncLoop, delay);
     }
   }
 
@@ -3306,7 +3333,7 @@ async function checkScheduledPowerDaemon() {
     }
   } catch (e) {}
 }
-setInterval(checkScheduledPowerDaemon, 3000);
+setInterval(checkScheduledPowerDaemon, 5000);
 
 // ===================== 大屏端隐藏菜单折叠面板组件化 =====================
 function initPlayerDrawerCollapsibles() {

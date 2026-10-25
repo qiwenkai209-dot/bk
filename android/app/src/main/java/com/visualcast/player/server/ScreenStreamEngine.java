@@ -33,9 +33,9 @@ public class ScreenStreamEngine {
     private static final String TAG = "VisualCastScreenStream";
     private static volatile ScreenStreamEngine instance;
 
-    public static final int STREAM_WIDTH = 960;
-    public static final int STREAM_HEIGHT = 540;
-    public static final int DEFAULT_QUALITY = 80;
+    public static final int STREAM_WIDTH = 640;
+    public static final int STREAM_HEIGHT = 360;
+    public static final int DEFAULT_QUALITY = 70;
 
     private final Context context;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -145,7 +145,7 @@ public class ScreenStreamEngine {
                         }
                     } else {
                         // 无后台客户端监看时自动深度休眠，0% CPU 占用
-                        Thread.sleep(400);
+                        Thread.sleep(1800);
                     }
                 } catch (InterruptedException ie) {
                     break;
