@@ -1,6 +1,7 @@
 package com.visualcast.player;
 
 import android.annotation.SuppressLint;
+import android.app.KeyguardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ActivityNotFoundException;
@@ -560,17 +561,38 @@ public class MainActivity extends AppCompatActivity {
         com.visualcast.player.server.HttpRouter.updateBlackoutState(false);
         runOnUiThread(() -> {
             try {
-                com.visualcast.player.utils.SystemHelper.bringVisualCastToFront(MainActivity.this);
-                if (wakeLock == null) {
-                    PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
-                    if (pm != null) {
-                        wakeLock = pm.newWakeLock(PowerManager.FULL_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.ON_AFTER_RELEASE, "VisualCast:Wakeup");
+                // 1. 强力亮屏配置与解锁锁屏屏保 (适配 Android 各版本工控板卡)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                    setShowWhenLocked(true);
+                    setTurnScreenOn(true);
+                } else {
+                    getWindow().addFlags(WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED
+                            | WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON
+                            | WindowManager.LayoutParams.FLAG_DISMISS_KEYGUARD);
+                }
+                getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+
+                KeyguardManager km = (KeyguardManager) getSystemService(Context.KEYGUARD_SERVICE);
+                if (km != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    km.requestDismissKeyguard(MainActivity.this, null);
+                }
+
+                // 2. 申请永久屏幕常亮锁 (不设 10 秒超时，彻底杜绝唤醒亮屏后又熄灭黑屏！)
+                PowerManager pm = (PowerManager) getSystemService(Context.POWER_SERVICE);
+                if (pm != null) {
+                    if (wakeLock != null && wakeLock.isHeld()) {
+                        try { wakeLock.release(); } catch (Exception ignored) {}
                     }
+                    wakeLock = pm.newWakeLock(PowerManager.SCREEN_BRIGHT_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.ON_AFTER_RELEASE, "VisualCast:MainWakeLock");
+                    wakeLock.acquire();
                 }
-                if (wakeLock != null && !wakeLock.isHeld()) {
-                    wakeLock.acquire(10000);
-                }
+
+                // 3. 将商显主程序提至最前台并恢复全屏沉浸
+                com.visualcast.player.utils.SystemHelper.bringVisualCastToFront(MainActivity.this);
+                hideSystemUI();
             } catch (Exception ignored) {}
+
+            // 4. WebView 恢复渲染与起播待机素材
             if (webView != null) {
                 try {
                     webView.onResume();

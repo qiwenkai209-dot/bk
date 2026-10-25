@@ -677,20 +677,6 @@
             <span id="timeline-last-event">时间轴节目就绪，点击右上角【⚙️ 编排时间轴节目】可弹窗进入多轨道可视化工作室</span>
           </div>
         </div>
-
-        <!-- 展馆自定义中转与协议分发中枢 -->
-        <div class="forwarder-list-container" style="margin-top: 24px; padding-top: 16px; border-top: 1px dashed rgba(255,255,255,0.08);">
-          <div class="sub-section-title" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <div style="display: flex; align-items: center; gap: 10px;">
-              <span style="font-size: 15px; font-weight: 700; color: #f8fafc;">🔀 展馆物联网自定义中转与协议分发规则</span>
-              <span class="badge-tag" id="fwd-count-badge" style="background: rgba(56,189,248,0.15); border: 1px solid rgba(56,189,248,0.3); color: #38bdf8; font-size: 11px; padding: 2px 8px; border-radius: 12px;">0 条规则</span>
-            </div>
-            <button id="btn-add-forwarder-direct" class="btn-action-small highlight" style="background: linear-gradient(135deg, #0ea5e9, #4f46e5); border: none; font-size: 12px; padding: 4px 12px;">+ 添加中转规则</button>
-          </div>
-          <div class="forwarder-cards-grid" id="forwarder-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px;">
-            <!-- 动态渲染中转转发规则卡片 -->
-          </div>
-        </div>
       </section>
 
     </div>
@@ -816,6 +802,8 @@
       </form>
     </div>
   </div>
+
+
 
   <!-- 模态框：配置自定义中转转发规则 (Forwarder) -->
   <div id="modal-forwarder" class="modal-overlay hidden">

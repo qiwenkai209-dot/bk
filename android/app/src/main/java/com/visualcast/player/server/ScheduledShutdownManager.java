@@ -94,12 +94,17 @@ public class ScheduledShutdownManager {
             SimpleDateFormat dfTime = new SimpleDateFormat("HH:mm", Locale.getDefault());
             String nowTimeStr = dfTime.format(new Date());
 
-            // 1. 关机/闭馆排程核验：按要求删除定时关机休眠功能，保留界面排程按钮与配置，大屏 24 小时常亮放映
+            // 1. 关机/待机排程核验：停止放映并切入黑场待机
             String shutdownTime = cfg.optString("shutdown_time", cfg.optString("time", "21:30")).trim();
             if (nowTimeStr.equals(shutdownTime)) {
                 if (!todayCancelled && !todayStr.equals(lastExecutedDate)) {
                     lastExecutedDate = todayStr;
-                    Log.i(TAG, "命中定时关机排程时刻: " + nowTimeStr + "，商显大屏已禁用实际关机与休眠，保持24小时常亮放映");
+                    Log.i(TAG, "命中定时关机排程时刻: " + nowTimeStr + "，触发黑场待机");
+                    HttpRouter.setGlobalSleepMode(true);
+                    MainActivity act = MainActivity.getInstance();
+                    if (act != null) {
+                        act.triggerSleepTransition(true);
+                    }
                 }
             } else {
                 if (!nowTimeStr.equals(shutdownTime) && todayCancelled && !todayStr.equals(lastExecutedDate)) {
@@ -107,13 +112,18 @@ public class ScheduledShutdownManager {
                 }
             }
 
-            // 2. 开机/开馆排程核验：确保处于正常常亮放映状态
+            // 2. 开机/唤醒排程核验：强力唤醒屏幕、解除黑场并永久保持高亮常亮放映
             boolean bootEnabled = cfg.optBoolean("boot_enabled", false);
             String bootTime = cfg.optString("boot_time", "08:30").trim();
             if (bootEnabled && nowTimeStr.equals(bootTime)) {
                 if (!todayStr.equals(lastExecutedBootDate)) {
                     lastExecutedBootDate = todayStr;
-                    Log.i(TAG, "命中开馆开机排程: " + nowTimeStr + "，确保大屏保持正常放映");
+                    Log.i(TAG, "命中开馆开机排程: " + nowTimeStr + "，触发自动强力亮屏与待机播放");
+                    HttpRouter.setGlobalSleepMode(false);
+                    MainActivity act = MainActivity.getInstance();
+                    if (act != null) {
+                        act.triggerSleepTransition(false);
+                    }
                 }
             }
 

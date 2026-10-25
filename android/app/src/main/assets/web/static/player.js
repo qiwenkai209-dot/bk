@@ -2360,6 +2360,7 @@ function applyCommand(cmd, directParams) {
     isExplicitlyStopped = true;
     stopMedia();
     setBlackout(true);
+    fetch('/api/system/sleep', { method: 'POST' }).catch(() => {});
   }
   window.triggerSystemPowerOff = triggerSystemPowerOff;
 
@@ -2367,8 +2368,10 @@ function applyCommand(cmd, directParams) {
     console.log('[VisualCast] 执行唤醒：解除黑场并播放待机素材');
     isSystemSleeping = false;
     isExplicitlyStopped = false;
+    isBlackout = false;
     setBlackout(false);
     returnToStandby(true);
+    fetch('/api/system/wakeup', { method: 'POST' }).catch(() => {});
   }
   window.triggerSystemPowerOn = triggerSystemPowerOn;
 
@@ -3292,7 +3295,7 @@ async function checkScheduledPowerDaemon() {
       console.log(`[VisualCast] ⏰ 定时关机时间到达 (${shutdownTimeStr})，触发黑场停播！`);
       isScheduledPowerOff = true;
       triggerSystemPowerOff();
-    } else if (bootEnabled && curTimeStr === bootTimeStr && isScheduledPowerOff) {
+    } else if (bootEnabled && curTimeStr === bootTimeStr && (isScheduledPowerOff || isSystemSleeping || isBlackout)) {
       console.log(`[VisualCast] ⏰ 定时开机时间到达 (${bootTimeStr})，恢复待机放映！`);
       isScheduledPowerOff = false;
       triggerSystemPowerOn();
