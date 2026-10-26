@@ -52,10 +52,12 @@
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
                 <category android:name="android.intent.category.DEFAULT" />
+                <!-- 允许作为商显大屏默认主屏/桌面应用，开机 100% 绝对拉起不被拦截 -->
+                <category android:name="android.intent.category.HOME" />
             </intent-filter>
         </activity>
 
-        <!-- 开机通电自启广播组合拳接收器 (全面覆盖主流及商显全志/视美泰/瑞芯微主板) -->
+        <!-- 开机通电自启广播组合拳接收器 (全面覆盖主流及商显全志/视美泰/瑞芯微主板/MTK快速开机) -->
         <receiver
             android:name=".BootReceiver"
             android:enabled="true"
@@ -65,6 +67,7 @@
                 <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
                 <action android:name="android.intent.action.QUICKBOOT_POWERON" />
                 <action android:name="com.htc.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="android.intent.action.ACTION_BOOT_IPO" />
                 <action android:name="android.intent.action.REBOOT" />
                 <action android:name="android.intent.action.USER_PRESENT" />
                 <action android:name="android.net.conn.CONNECTIVITY_CHANGE" />
@@ -73,6 +76,10 @@
                 <action android:name="android.intent.action.PACKAGE_REPLACED" />
                 <action android:name="com.smdt.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.PRE_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.ROCKCHIP_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.AW_BOOT_COMPLETED" />
+                <action android:name="android.intent.action.SCREEN_ON" />
+                <action android:name="android.intent.action.DREAMING_STOPPED" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </receiver>

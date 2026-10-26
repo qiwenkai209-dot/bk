@@ -85,9 +85,12 @@ public class BootReceiver extends BroadcastReceiver {
         }
 
         long now = System.currentTimeMillis();
-        if (now - lastLaunchTimestamp < LAUNCH_DEBOUNCE_MS) {
-            Log.d(TAG, "防抖拦截: 距离上次自启调用小于 6 秒，忽略广播: " + action);
-            return;
+        // 智能防抖：如果 MainActivity 已经处于前台活跃状态，才执行防抖拦截；如果应用尚未启动成功，坚决不拦截！
+        if (MainActivity.getInstance() != null && MainActivity.getInstance().hasWindowFocus()) {
+            if (now - lastLaunchTimestamp < LAUNCH_DEBOUNCE_MS) {
+                Log.d(TAG, "应用已在前台活跃，防抖忽略广播: " + action);
+                return;
+            }
         }
         lastLaunchTimestamp = now;
 
@@ -96,12 +99,14 @@ public class BootReceiver extends BroadcastReceiver {
         // 1. 点亮屏幕与获取短时 CPU WakeLock
         acquireTempWakeLock(context);
 
-        // 2. 多重保险拉起 MainActivity
+        // 2. 多重保险拉起 MainActivity (双轨并行：直接拉起 + Android 10+ 全屏通知穿透)
         launchMainActivity(context);
 
-        // 3. 延迟阶梯二次加固拉起 (防止系统 Launcher 启动迟缓将主屏应用覆盖至后台)
+        // 3. 延迟阶梯二次加固拉起 (防止系统缓慢 Launcher 启动后将应用覆盖到后台)
         scheduleRetryLaunch(context, 1500);
         scheduleRetryLaunch(context, 3500);
+        scheduleRetryLaunch(context, 6000);
+        scheduleRetryLaunch(context, 9000);
     }
 
     private void acquireTempWakeLock(Context context) {
@@ -112,7 +117,7 @@ public class BootReceiver extends BroadcastReceiver {
                         PowerManager.FULL_WAKE_LOCK | PowerManager.ACQUIRE_CAUSES_WAKEUP | PowerManager.ON_AFTER_RELEASE,
                         "VisualCast:BootLaunchWakeLock"
                 );
-                wl.acquire(10000L); // 保持唤醒 10 秒供页面加载
+                wl.acquire(15000L); // 保持唤醒 15 秒供页面完整加载
             }
         } catch (Exception e) {
             Log.w(TAG, "获取开机 WakeLock 异常: " + e.getMessage());
@@ -127,9 +132,13 @@ public class BootReceiver extends BroadcastReceiver {
                     | Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED
                     | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
             context.startActivity(launchIntent);
-            Log.i(TAG, "已成功向系统发送拉起 MainActivity Intent");
+            Log.i(TAG, "已向系统发出拉起 MainActivity Intent");
         } catch (Exception e) {
-            Log.e(TAG, "直接拉起 MainActivity 失败: " + e.getMessage() + "，尝试通知穿透兜底...");
+            Log.w(TAG, "直接拉起 MainActivity 提示: " + e.getMessage());
+        }
+
+        // 关键：在 Android 10+ 上，系统对后台 startActivity 会静默拦截且不抛出 Java 异常，必须同时使用全屏通知穿透
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             launchViaNotification(context);
         }
     }
@@ -140,10 +149,13 @@ public class BootReceiver extends BroadcastReceiver {
             public void run() {
                 try {
                     if (MainActivity.getInstance() == null || !MainActivity.getInstance().hasWindowFocus()) {
-                        Log.i(TAG, "执行开机加固拉起 (延迟 " + delayMillis + "ms)...");
+                        Log.i(TAG, "执行开机阶梯加固拉起 (延迟 " + delayMillis + "ms)...");
                         Intent intent = new Intent(context, MainActivity.class);
-                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_REORDER_TO_FRONT | Intent.FLAG_ACTIVITY_CLEAR_TOP);
                         context.startActivity(intent);
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                            launchViaNotification(context);
+                        }
                     }
                 } catch (Exception ignored) {}
             }
