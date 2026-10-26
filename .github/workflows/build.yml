@@ -55,10 +55,35 @@ jobs:
             cp android/app/build/outputs/apk/debug/app-debug.apk output/VisualCast.apk
           fi
 
-      - name: Upload VisualCast APK (Single Uncompressed File)
+      - name: Upload VisualCast APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VisualCast.apk
+          name: VisualCast-Artifact
           path: output/VisualCast.apk
           if-no-files-found: error
+
+      - name: Update latest tag
+        if: github.ref == 'refs/heads/main'
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -f latest
+          git push -f origin latest
+
+      - name: Release VisualCast.apk to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        if: github.ref == 'refs/heads/main'
+        with:
+          tag_name: latest
+          name: "VisualCast 最新构建 (${{ github.sha }})"
+          body: |
+            ## 🚀 VisualCast 展馆智能播控平台自动构建
+            - **Commit**: ${{ github.sha }}
+            - **分支**: main
+            - **构建环境**: GitHub Actions (Ubuntu / Temurin JDK 17)
+            - **下载说明**: 直接点击下方 `VisualCast.apk` 资产即可下载，无需解压。
+          files: output/VisualCast.apk
+          draft: false
+          prerelease: false
+
 
