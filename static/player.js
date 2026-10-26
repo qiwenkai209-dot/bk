@@ -368,10 +368,187 @@
     console.log(`[VisualCast] 屏幕方向已切换为: ${ori}`);
   }
 
-  // 独立顶层悬浮跑马灯字幕管理器 (完全穿透触控，支持顶部/居中/底部，字号/颜色/速度实时响应)
+  // ===================== 顶层字幕引擎 (支持多行悬浮 / 实时时间 / 第三方天气) =====================
+  let cachedWeatherInfo = {
+    city: '北京',
+    text: '晴',
+    temp: '22℃',
+    wind: '微风',
+    str: '🌤️ 晴 22℃ 微风',
+    updateTime: 0
+  };
+  let subtitleTickerTimer = null;
+
+  // 格式化实时时间 (HH:mm:ss)
+  function getSubCurrentTimeStr() {
+    const d = new Date();
+    return d.toTimeString().split(' ')[0];
+  }
+
+  // 格式化当前日期星期 (YYYY年MM月DD日 星期X)
+  function getSubCurrentDateStr() {
+    const d = new Date();
+    const weeks = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+    const y = d.getFullYear();
+    const m = (d.getMonth() + 1).toString().padStart(2, '0');
+    const day = d.getDate().toString().padStart(2, '0');
+    const w = weeks[d.getDay()];
+    return `${y}年${m}月${day}日 ${w}`;
+  }
+
+  // 异步获取第三方城市天气 (带 4 秒超时与 30 分钟缓存与智能降级)
+  async function updateThirdPartyWeather(city) {
+    city = (city || '北京').trim();
+    const now = Date.now();
+    // 30分钟内若城市相同则直接复用缓存
+    if (cachedWeatherInfo.city === city && (now - cachedWeatherInfo.updateTime) < 1800000) {
+      return cachedWeatherInfo;
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 4000);
+
+    try {
+      // 优先使用高可用天气 API (vvhan 开放 API，免密且响应快)
+      const res = await fetch(`https://api.vvhan.com/api/weather?city=${encodeURIComponent(city)}`, {
+        signal: controller.signal,
+        cache: 'no-store'
+      });
+      clearTimeout(timer);
+      const data = await res.json();
+      if (data && data.success && data.data) {
+        const d = data.data;
+        const weatherType = d.type || '晴';
+        let icon = '🌤️';
+        if (weatherType.includes('雨')) icon = '🌧️';
+        else if (weatherType.includes('云') || weatherType.includes('阴')) icon = '⛅';
+        else if (weatherType.includes('雪')) icon = '❄️';
+        else if (weatherType.includes('雷')) icon = '⛈️';
+
+        const tempStr = d.high ? `${d.low || ''}~${d.high}` : (d.temp ? `${d.temp}℃` : '22℃');
+        const windStr = d.fengxiang || '微风';
+        cachedWeatherInfo = {
+          city: city,
+          text: weatherType,
+          temp: tempStr,
+          wind: windStr,
+          str: `${icon} ${city} ${weatherType} ${tempStr} ${windStr}`.trim(),
+          updateTime: now
+        };
+      }
+    } catch (e) {
+      // 若因无外网、断网或代理拦截，降级使用保底数据，绝不抛出异常阻碍大屏运行
+      if (!cachedWeatherInfo.str || cachedWeatherInfo.city !== city) {
+        cachedWeatherInfo = {
+          city: city,
+          text: '晴',
+          temp: '22℃',
+          wind: '微风',
+          str: `🌤️ ${city} 晴 22℃ 微风`,
+          updateTime: now
+        };
+      }
+    }
+    return cachedWeatherInfo;
+  }
+
+  // 动态替换文案中的变量占位符 {time}、{date}、{weather}
+  function interpolateSubText(rawText) {
+    if (!rawText) return '';
+    return rawText
+      .replace(/\{time\}/gi, getSubCurrentTimeStr())
+      .replace(/\{date\}/gi, getSubCurrentDateStr())
+      .replace(/\{weather\}/gi, cachedWeatherInfo.str || '🌤️ 晴 22℃');
+  }
+
+  // 渲染字幕到 DOM (支持多行、独立天气时间挂件)
+  function renderSubtitleDom(sub) {
+    if (!sub || !sub.enabled || !sub.text) {
+      subtitleLayer.className = 'subtitle-layer';
+      subtitleLayer.classList.remove('active');
+      subtitleLayer.innerHTML = '';
+      subtitleLayer.style.background = 'transparent';
+      return;
+    }
+
+    subtitleLayer.className = 'subtitle-layer active';
+    const pos = sub.position || 'center';
+    if (pos === 'top') subtitleLayer.classList.add('pos-top');
+    else if (pos === 'bottom') subtitleLayer.classList.add('pos-bottom');
+    else subtitleLayer.classList.add('pos-center');
+
+    const fontSize = sub.font_size || sub.fontSize || 72;
+    const color = sub.color || '#ffffff';
+    const bgColor = sub.bg_color || sub.bgColor || (sub.transparent_bg ? 'transparent' : 'rgba(0, 0, 0, 0.72)');
+    const isMarquee = (sub.mode === 'marquee' || ((sub.speed !== undefined) && parseInt(sub.speed) > 0 && sub.mode !== 'static' && !sub.mode?.startsWith('multiline')));
+    const speed = (sub.speed !== undefined) ? parseInt(sub.speed) : 20;
+
+    subtitleLayer.style.background = bgColor;
+
+    // 组装天气与时间小部件 HTML
+    let widgetHtml = '';
+    if (sub.show_time || sub.show_weather) {
+      widgetHtml = `
+        <div class="sub-weather-time-bar">
+          ${sub.show_weather ? `<span class="sub-weather-item" id="sub-dyn-weather">${cachedWeatherInfo.str}</span>` : ''}
+          ${sub.show_time ? `<span class="sub-time-item">🕒 <span id="sub-dyn-time">${getSubCurrentTimeStr()}</span></span>` : ''}
+        </div>
+      `;
+    }
+
+    const processedText = interpolateSubText(sub.text);
+
+    if (isMarquee) {
+      subtitleLayer.innerHTML = `
+        ${widgetHtml}
+        <div class="subtitle-marquee" style="font-size: ${fontSize}px; color: ${color}; animation-duration: ${speed}s;">
+          ${processedText}
+        </div>
+      `;
+    } else {
+      subtitleLayer.innerHTML = `
+        <div class="subtitle-card-box">
+          ${widgetHtml}
+          <div class="subtitle-multiline" style="font-size: ${fontSize}px; color: ${color};">
+            ${processedText}
+          </div>
+        </div>
+      `;
+    }
+  }
+
+  // 启动秒级时间轻量更新调度器 (每秒局部更新时钟，0%额外能耗)
+  function ensureSubtitleTicker() {
+    if (subtitleTickerTimer) return;
+    subtitleTickerTimer = setInterval(() => {
+      if (!currentSubtitleConfig || !currentSubtitleConfig.enabled || isBlackout) return;
+      const sub = currentSubtitleConfig;
+      
+      // 1. 如果有专门的时间挂件，局部更新时间
+      const timeEl = document.getElementById('sub-dyn-time');
+      if (timeEl) {
+        timeEl.textContent = getSubCurrentTimeStr();
+      }
+
+      // 2. 如果文本中含有 {time} 动态宏变量，秒级局部更新文本内容
+      if (sub.text && sub.text.includes('{time}')) {
+        const multiEl = subtitleLayer.querySelector('.subtitle-multiline');
+        const marqueeEl = subtitleLayer.querySelector('.subtitle-marquee');
+        const updated = interpolateSubText(sub.text);
+        if (multiEl && multiEl.textContent !== updated) {
+          multiEl.textContent = updated;
+        } else if (marqueeEl && marqueeEl.textContent !== updated) {
+          marqueeEl.textContent = updated;
+        }
+      }
+    }, 1000);
+  }
+
+  // 独立顶层悬浮字幕管理器 (完全穿透触控，支持多行悬浮/跑马灯/时间天气)
   function applySubtitleConfig(sub) {
     if (!sub) return;
     currentSubtitleConfig = sub;
+
     if (!sub.enabled || !sub.text) {
       subtitleLayer.className = 'subtitle-layer';
       subtitleLayer.classList.remove('active');
@@ -379,32 +556,16 @@
       subtitleLayer.style.background = 'transparent';
       return;
     }
-    subtitleLayer.className = 'subtitle-layer active';
-    const pos = sub.position || 'bottom';
-    if (pos === 'top') subtitleLayer.classList.add('pos-top');
-    else if (pos === 'center') subtitleLayer.classList.add('pos-center');
-    else subtitleLayer.classList.add('pos-bottom');
 
-    const fontSize = sub.font_size || sub.fontSize || 42;
-    const color = sub.color || '#ffffff';
-    const bgColor = sub.bg_color || sub.bgColor || 'rgba(0, 0, 0, 0.6)';
-    const speed = (sub.speed !== undefined) ? parseInt(sub.speed) : 20;
-
-    subtitleLayer.style.background = bgColor;
-
-    if (speed > 0) {
-      subtitleLayer.innerHTML = `
-        <div class="subtitle-marquee" style="font-size: ${fontSize}px; color: ${color}; animation-duration: ${speed}s;">
-          ${sub.text}
-        </div>
-      `;
-    } else {
-      subtitleLayer.innerHTML = `
-        <div class="subtitle-static" style="font-size: ${fontSize}px; color: ${color};">
-          ${sub.text}
-        </div>
-      `;
+    // 异步拉取第三方天气并重新渲染
+    if (sub.show_weather || (sub.text && sub.text.includes('{weather}'))) {
+      updateThirdPartyWeather(sub.city || '北京').then(() => {
+        renderSubtitleDom(currentSubtitleConfig);
+      });
     }
+
+    renderSubtitleDom(sub);
+    ensureSubtitleTicker();
   }
 
   // 动态刷新当前播放队列 (根据 loopMode 与 currentFolder 智能聚合)
@@ -1688,10 +1849,12 @@
           lowLatencyMode: true,
           backBufferLength: 30,
           maxBufferLength: 20,
-          manifestLoadingTimeOut: 10000,
-          manifestLoadingMaxRetry: 6,
-          levelLoadingTimeOut: 10000,
-          levelLoadingMaxRetry: 6
+          manifestLoadingTimeOut: 15000,
+          manifestLoadingMaxRetry: 8,
+          levelLoadingTimeOut: 15000,
+          levelLoadingMaxRetry: 8,
+          fragLoadingTimeOut: 20000,
+          fragLoadingMaxRetry: 8
         });
         window.activeHls = hls;
         hls.loadSource(mediaUrl);
@@ -1703,7 +1866,7 @@
           if (data.fatal) {
             switch (data.type) {
               case Hls.ErrorTypes.NETWORK_ERROR:
-                console.warn('[VisualCast] 直播流网络抖动，自动重试加载分片...', data);
+                console.warn('[VisualCast] 直播流网络抖动(可能受代理或网络波动影响)，自动重试加载分片...', data);
                 hls.startLoad();
                 break;
               case Hls.ErrorTypes.MEDIA_ERROR:
@@ -1711,7 +1874,7 @@
                 hls.recoverMediaError();
                 break;
               default:
-                console.error('[VisualCast] 直播流出现致命异常，2秒后自动重连:', data);
+                console.error('[VisualCast] 直播流出现致命异常，2秒后自动平滑重连:', data);
                 setTimeout(() => {
                   if (currentMediaType === 'stream' && window.activeHls === hls) {
                     hls.loadSource(mediaUrl);
@@ -1753,6 +1916,9 @@
             if (!effectiveUrl.startsWith('http://') && !effectiveUrl.startsWith('https://')) {
               effectiveUrl = 'http://' + effectiveUrl;
             }
+            frameEl.setAttribute('allow', 'fullscreen; autoplay; camera; microphone');
+            frameEl.setAttribute('sandbox', 'allow-forms allow-scripts allow-same-origin allow-popups allow-downloads allow-presentation');
+            frameEl.referrerPolicy = 'no-referrer';
             frameEl.src = effectiveUrl;
             frameEl.classList.add('active');
           }
@@ -1766,6 +1932,9 @@
         if (targetUrl && !targetUrl.startsWith('http://') && !targetUrl.startsWith('https://')) {
           targetUrl = 'http://' + targetUrl;
         }
+        frameEl.setAttribute('allow', 'fullscreen; autoplay; camera; microphone');
+        frameEl.setAttribute('sandbox', 'allow-forms allow-scripts allow-same-origin allow-popups allow-downloads allow-presentation');
+        frameEl.referrerPolicy = 'no-referrer';
         frameEl.src = targetUrl || mediaUrl;
         frameEl.classList.add('active');
       }

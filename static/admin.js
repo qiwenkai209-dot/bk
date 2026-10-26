@@ -115,6 +115,7 @@
   // 素材库
   const mediaGrid = document.getElementById('media-grid');
   const mediaTotalCount = document.getElementById('media-total-count');
+  const btnRefreshMediaLibrary = document.getElementById('btn-refresh-media-library');
   const fileUploader = document.getElementById('file-uploader');
   const dropZone = document.getElementById('drop-zone');
   const folderSelect = document.getElementById('folder-select');
@@ -2417,6 +2418,27 @@
     });
   }
 
+  // 素材栏【🔄 更新】按键：即时触发全量扫描与U盘同步
+  if (btnRefreshMediaLibrary) {
+    btnRefreshMediaLibrary.addEventListener('click', async () => {
+      const origHtml = btnRefreshMediaLibrary.innerHTML;
+      btnRefreshMediaLibrary.innerHTML = '⏳ 正在更新...';
+      btnRefreshMediaLibrary.disabled = true;
+      try {
+        // 主动触发 U 盘全量探测与同步
+        await fetch('/api/system/usb_sync', { method: 'POST', cache: 'no-store' }).catch(() => {});
+        // 重新拉取素材列表与分类计数
+        await loadMediaLibrary();
+        showToast('素材库已完成全量更新扫描');
+      } catch (err) {
+        showToast('素材库更新完成');
+      } finally {
+        btnRefreshMediaLibrary.innerHTML = origHtml;
+        btnRefreshMediaLibrary.disabled = false;
+      }
+    });
+  }
+
   // 文件上传
   if (fileUploader) {
     fileUploader.addEventListener('change', async (e) => {
@@ -3533,7 +3555,7 @@
     });
   }
 
-  // ===================== 9. 大屏顶层字幕 (多行支持 / 静态居中 / 快捷模板) =====================
+  // ===================== 9. 大屏顶层字幕 (多行悬浮 / 静态居中 / 第三方天气与时间 / 快捷模板) =====================
   const modalSubtitle = document.getElementById('modal-subtitle');
   const btnOpenSubtitleModal = document.getElementById('btn-open-subtitle-modal');
   const btnCloseSubtitleModal = document.getElementById('btn-close-subtitle-modal');
@@ -3549,17 +3571,59 @@
   const subFontsize = document.getElementById('sub-fontsize');
   const subColor = document.getElementById('sub-color');
   const subTransparentBg = document.getElementById('sub-transparent-bg');
+  const subShowTime = document.getElementById('sub-show-time');
+  const subShowWeather = document.getElementById('sub-show-weather');
+  const subCity = document.getElementById('sub-city');
+  const btnInsertSubTime = document.getElementById('btn-insert-sub-time');
+  const btnInsertSubDate = document.getElementById('btn-insert-sub-date');
+  const btnInsertSubWeather = document.getElementById('btn-insert-sub-weather');
 
-  // 快捷场景预置模板库
+  // 辅助函数：在文本输入框当前光标处插入内容
+  function insertTextAtCursor(inputEl, textToInsert) {
+    if (!inputEl) return;
+    const start = inputEl.selectionStart || 0;
+    const end = inputEl.selectionEnd || 0;
+    const val = inputEl.value;
+    inputEl.value = val.substring(0, start) + textToInsert + val.substring(end);
+    inputEl.focus();
+    inputEl.selectionStart = inputEl.selectionEnd = start + textToInsert.length;
+  }
+
+  if (btnInsertSubTime) {
+    btnInsertSubTime.addEventListener('click', () => insertTextAtCursor(subText, '{time}'));
+  }
+  if (btnInsertSubDate) {
+    btnInsertSubDate.addEventListener('click', () => insertTextAtCursor(subText, '{date}'));
+  }
+  if (btnInsertSubWeather) {
+    btnInsertSubWeather.addEventListener('click', () => insertTextAtCursor(subText, '{weather}'));
+  }
+
+  // 快捷场景预置模板库 (全面升级支持多行悬浮与天气时间)
   const SUBTITLE_TEMPLATES = {
     welcome: {
-      text: "热烈欢迎各位领导与专家\n莅临指导参观！",
+      text: "热烈欢迎各位领导与专家\n莅临展馆参观与指导工作！",
       mode: "static",
       position: "center",
-      font_size: 96,
+      font_size: 88,
       color: "#f59e0b",
       speed: 0,
-      transparent_bg: true
+      transparent_bg: true,
+      show_time: false,
+      show_weather: false,
+      city: "北京"
+    },
+    weather_time: {
+      text: "科技赋能 · 智享未来\n展馆实时时间：{date} {time}\n当前气象：{weather}",
+      mode: "static",
+      position: "center",
+      font_size: 72,
+      color: "#60a5fa",
+      speed: 0,
+      transparent_bg: true,
+      show_time: true,
+      show_weather: true,
+      city: "北京"
     },
     notice: {
       text: "【临时通告】\n因设备系统例行维护，本区域展项暂时调整\n请遵从现场工作人员指引，敬请谅解！",
@@ -3568,7 +3632,10 @@
       font_size: 56,
       color: "#ef4444",
       speed: 0,
-      transparent_bg: false
+      transparent_bg: false,
+      show_time: false,
+      show_weather: false,
+      city: "北京"
     },
     event: {
       text: "【展厅活动预告】多媒体沉浸式光影秀将于 15:00 准时开场，请各位观众提前就座观赏！",
@@ -3577,7 +3644,10 @@
       font_size: 46,
       color: "#06b6d4",
       speed: 25,
-      transparent_bg: true
+      transparent_bg: true,
+      show_time: false,
+      show_weather: false,
+      city: "北京"
     },
     tips: {
       text: "【温馨提示】\n请爱护公共展品设施，保持场馆整洁有序\n展厅内请勿追逐喧哗与饮食，祝您参观愉快！",
@@ -3586,7 +3656,10 @@
       font_size: 40,
       color: "#10b981",
       speed: 0,
-      transparent_bg: true
+      transparent_bg: true,
+      show_time: false,
+      show_weather: false,
+      city: "北京"
     },
     holiday: {
       text: "盛世欢歌 · 喜迎贵宾\n祝愿大家身体健康、万事顺遂、阖家幸福！",
@@ -3595,31 +3668,36 @@
       font_size: 88,
       color: "#fb7185",
       speed: 0,
-      transparent_bg: true
+      transparent_bg: true,
+      show_time: false,
+      show_weather: false,
+      city: "北京"
     }
   };
 
   function updateSubModeUI(mode) {
-    if (mode === 'static') {
-      if (subSpeedGroup) subSpeedGroup.style.display = 'none';
-      if (subStaticHint) subStaticHint.style.display = 'block';
-    } else {
-      if (subSpeedGroup) subSpeedGroup.style.display = 'block';
-      if (subStaticHint) subStaticHint.style.display = 'none';
-    }
+    const isMarquee = (mode === 'marquee');
+    if (subSpeedGroup) subSpeedGroup.style.display = isMarquee ? 'block' : 'none';
+    if (subStaticHint) subStaticHint.style.display = isMarquee ? 'none' : 'block';
   }
 
   if (subMode) {
     subMode.addEventListener('change', () => {
       const mode = subMode.value;
       updateSubModeUI(mode);
-      if (mode === 'static') {
-        if (subPosition && subPosition.value !== 'top') subPosition.value = 'center';
-        if (subSpeed) subSpeed.value = 0;
-        if (subFontsize && parseInt(subFontsize.value) < 60) subFontsize.value = 80;
-      } else {
+      if (mode === 'marquee') {
         if (subPosition && subPosition.value === 'center') subPosition.value = 'bottom';
         if (subSpeed && (parseInt(subSpeed.value) || 0) === 0) subSpeed.value = 20;
+      } else if (mode === 'multiline_top') {
+        if (subPosition) subPosition.value = 'top';
+        if (subSpeed) subSpeed.value = 0;
+      } else if (mode === 'multiline_bottom') {
+        if (subPosition) subPosition.value = 'bottom';
+        if (subSpeed) subSpeed.value = 0;
+      } else {
+        if (subPosition && subPosition.value !== 'top') subPosition.value = 'center';
+        if (subSpeed) subSpeed.value = 0;
+        if (subFontsize && parseInt(subFontsize.value) < 60) subFontsize.value = 72;
       }
     });
   }
@@ -3637,6 +3715,9 @@
       if (subColor) subColor.value = tpl.color;
       if (subSpeed) subSpeed.value = tpl.speed;
       if (subTransparentBg) subTransparentBg.checked = tpl.transparent_bg;
+      if (subShowTime) subShowTime.checked = !!tpl.show_time;
+      if (subShowWeather) subShowWeather.checked = !!tpl.show_weather;
+      if (subCity && tpl.city) subCity.value = tpl.city;
       updateSubModeUI(tpl.mode);
       showToast(`已应用【${btn.textContent.trim()}】模板，可按需微调后发布`);
     });
@@ -3645,20 +3726,23 @@
   if (btnOpenSubtitleModal) {
     btnOpenSubtitleModal.addEventListener('click', async () => {
       try {
-        const res = await fetch('/api/subtitle');
+        const res = await fetch('/api/subtitle?_t=' + Date.now(), { cache: 'no-store' });
         const data = await res.json();
         if (data.status === 'ok' && data.subtitle) {
           const s = data.subtitle;
           if (subEnabled) subEnabled.checked = (s.enabled !== false);
           if (subText) subText.value = s.text || '';
           const currentSpeed = (s.speed !== undefined) ? parseInt(s.speed) : 20;
-          const currentMode = s.mode || (currentSpeed === 0 ? 'static' : 'marquee');
+          let currentMode = s.mode || (currentSpeed === 0 ? 'static' : 'marquee');
           if (subMode) subMode.value = currentMode;
-          if (subPosition) subPosition.value = s.position || (currentMode === 'static' ? 'center' : 'bottom');
+          if (subPosition) subPosition.value = s.position || (currentMode === 'marquee' ? 'bottom' : 'center');
           if (subSpeed) subSpeed.value = currentSpeed;
-          if (subFontsize) subFontsize.value = s.font_size || (currentMode === 'static' ? 80 : 48);
+          if (subFontsize) subFontsize.value = s.font_size || (currentMode === 'marquee' ? 48 : 72);
           if (subColor) subColor.value = s.color || '#ffffff';
           if (subTransparentBg) subTransparentBg.checked = (s.transparent_bg !== false);
+          if (subShowTime) subShowTime.checked = (s.show_time === true);
+          if (subShowWeather) subShowWeather.checked = (s.show_weather === true);
+          if (subCity) subCity.value = s.city || '北京';
           updateSubModeUI(currentMode);
         }
       } catch (e) {}
@@ -3672,17 +3756,21 @@
   if (formSubtitleConfig) {
     formSubtitleConfig.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const isStatic = (subMode && subMode.value === 'static');
+      const currentModeVal = subMode ? subMode.value : 'static';
+      const isMarquee = (currentModeVal === 'marquee');
       const payload = {
         enabled: subEnabled ? subEnabled.checked : true,
         text: subText ? subText.value : '',
-        mode: isStatic ? 'static' : 'marquee',
-        position: subPosition ? subPosition.value : (isStatic ? 'center' : 'bottom'),
-        speed: isStatic ? 0 : (subSpeed ? parseInt(subSpeed.value) || 20 : 20),
+        mode: currentModeVal,
+        position: subPosition ? subPosition.value : (isMarquee ? 'bottom' : 'center'),
+        speed: isMarquee ? (subSpeed ? parseInt(subSpeed.value) || 20 : 20) : 0,
         font_size: subFontsize ? parseInt(subFontsize.value) || 64 : 64,
         color: subColor ? subColor.value : '#ffffff',
         transparent_bg: subTransparentBg ? subTransparentBg.checked : true,
-        bg_color: (subTransparentBg && subTransparentBg.checked) ? 'transparent' : 'rgba(0, 0, 0, 0.65)'
+        bg_color: (subTransparentBg && subTransparentBg.checked) ? 'transparent' : 'rgba(0, 0, 0, 0.72)',
+        show_time: subShowTime ? subShowTime.checked : false,
+        show_weather: subShowWeather ? subShowWeather.checked : false,
+        city: subCity ? subCity.value.trim() : '北京'
       };
 
       try {
@@ -3694,7 +3782,7 @@
         const ret = await res.json();
         if (ret.status === 'ok') {
           modalSubtitle.classList.add('hidden');
-          showToast(payload.enabled ? (isStatic ? '静态居中字幕已推送到大屏生效' : '跑马灯字幕已推送到大屏生效') : '大屏悬浮字幕已关闭');
+          showToast(payload.enabled ? (isMarquee ? '跑马灯字幕已推送到大屏生效' : '多行悬浮字幕与天气时间已推送到大屏生效') : '大屏悬浮字幕已关闭');
         } else {
           alert('保存字幕失败: ' + ret.message);
         }

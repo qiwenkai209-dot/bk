@@ -199,8 +199,10 @@
             </div>
             
             <div class="media-header-actions">
+              <!-- 更新素材库与U盘主动同步 -->
+              <button id="btn-refresh-media-library" class="btn-action-ghost" style="color:#38bdf8; border-color:rgba(56,189,248,0.4);" title="重新全量扫描并刷新全部素材库 (含 U 盘同步)">🔄 更新</button>
               <!-- 字幕配置与网页流码直达按键 -->
-              <button id="btn-open-subtitle-modal" class="btn-action-ghost" title="配置大屏顶层悬浮/跑马灯字幕">📢 顶层字幕</button>
+              <button id="btn-open-subtitle-modal" class="btn-action-ghost" title="配置大屏顶层悬浮/跑马灯字幕 (支持多行、实时时间与第三方天气)">📢 顶层字幕</button>
               <button id="btn-open-custom-media-modal" class="btn-action-ghost highlight" title="添加网页或网络直播流 (将在素材文件夹中自动生成 .txt 文档)">🌐 添加网页流码</button>
               <!-- 上传主按钮 -->
               <label class="btn-upload-label" for="file-uploader" title="批量多格式上传至当前选定分类 (支持视频、图片、音频、文档、流码.txt)">
@@ -1006,6 +1008,14 @@
         <div class="tip-text" style="font-size:12px; color:#38bdf8; margin-top:-4px;">
           💾 确认添加后，将在系统 media 素材文件夹中自动生成对应的 .txt 文档，大屏点播时将自动以全屏网页/流容器呈现。
         </div>
+        <!-- 代理客户端诊断指引 -->
+        <div style="margin-top:10px; padding:10px; background:rgba(56,189,248,0.08); border:1px dashed rgba(56,189,248,0.3); border-radius:6px; font-size:12px; color:#bae6fd; line-height:1.6;">
+          <div style="font-weight:700; color:#38bdf8; margin-bottom:4px; display:flex; align-items:center; gap:6px;">
+            <span>🛡️ 代理软件 (SakuraCat / Clash 等) 运行诊断提醒：</span>
+          </div>
+          <div>1. <strong>局域网设备/流码</strong>：如当前电脑开启了 SakuraCat 系统代理/TUN，请确保在代理设置的「Bypass/绕过列表」中已加入内网 IP 段（如 <code>192.168.*</code>、<code>10.*</code>、<code>localhost</code>），否则可能导致后台断流或无法连通。</div>
+          <div>2. <strong>外部公网网页</strong>：添加公网网页需支持 <code>iframe</code> 嵌套（未开启跨域阻止响应头）。如需外网访问，请确保大屏安卓硬件已连接 Internet。</div>
+        </div>
         <div class="modal-actions">
           <button type="button" class="btn-cancel" id="btn-cancel-custom-media">取消</button>
           <button type="submit" class="btn-save">立即生成并存入素材库</button>
@@ -1014,13 +1024,13 @@
     </div>
   </div>
 
-  <!-- 模态框 5：顶层字幕 / 跑马灯配置 (支持多行输入 / 静态居中 / 快捷模板) -->
+  <!-- 模态框 5：顶层字幕 / 跑马灯配置 (支持多行悬浮 / 静态居中 / 第三方天气与时间) -->
   <div id="modal-subtitle" class="modal-overlay hidden">
-    <div class="modal-box" style="max-width:560px;">
+    <div class="modal-box" style="max-width:580px;">
       <div class="modal-header">
         <div style="display:flex; align-items:center; gap:8px;">
           <span style="font-size:18px;">📢</span>
-          <h3 style="margin:0; font-size:16px;">大屏顶层悬浮字幕 / 欢迎词与通告</h3>
+          <h3 style="margin:0; font-size:16px;">大屏顶层悬浮字幕 / 多行欢迎词 / 实时天气与时钟</h3>
         </div>
         <button class="btn-close-modal" id="btn-close-subtitle-modal">✕</button>
       </div>
@@ -1030,7 +1040,7 @@
             <input type="checkbox" id="sub-enabled" checked />
             <span style="font-weight:600;">启用大屏悬浮字幕显示</span>
           </label>
-          <span style="font-size:12px; color:#94a3b8;">支持静态居中迎宾与跑马灯轮播</span>
+          <span style="font-size:12px; color:#94a3b8;">支持多行居中/上下悬浮、实时天气与时间</span>
         </div>
 
         <!-- 快捷场景模板选择 -->
@@ -1041,6 +1051,7 @@
           </label>
           <div class="sub-template-bar" style="display:grid; grid-template-columns:repeat(auto-fit, minmax(95px, 1fr)); gap:6px;">
             <button type="button" class="btn-sub-tpl" data-tpl="welcome" style="padding:6px 4px; font-size:12px; background:rgba(245,158,11,0.15); border:1px solid rgba(245,158,11,0.4); color:#fbbf24; border-radius:6px; cursor:pointer;">🎉 领导欢迎词</button>
+            <button type="button" class="btn-sub-tpl" data-tpl="weather_time" style="padding:6px 4px; font-size:12px; background:rgba(59,130,246,0.15); border:1px solid rgba(59,130,246,0.4); color:#60a5fa; border-radius:6px; cursor:pointer;">🌤️ 天气时钟</button>
             <button type="button" class="btn-sub-tpl" data-tpl="notice" style="padding:6px 4px; font-size:12px; background:rgba(239,68,68,0.15); border:1px solid rgba(239,68,68,0.4); color:#f87171; border-radius:6px; cursor:pointer;">📢 临时通告</button>
             <button type="button" class="btn-sub-tpl" data-tpl="event" style="padding:6px 4px; font-size:12px; background:rgba(6,182,212,0.15); border:1px solid rgba(6,182,212,0.4); color:#22d3ee; border-radius:6px; cursor:pointer;">🗺️ 活动预告</button>
             <button type="button" class="btn-sub-tpl" data-tpl="tips" style="padding:6px 4px; font-size:12px; background:rgba(16,185,129,0.15); border:1px solid rgba(16,185,129,0.4); color:#34d399; border-radius:6px; cursor:pointer;">🌿 温馨提示</button>
@@ -1048,28 +1059,55 @@
           </div>
         </div>
 
-        <div class="form-row">
-          <label style="display:flex; justify-content:space-between; align-items:center;">
-            <span>字幕播报内容 (支持多行回车换行)</span>
-            <span style="font-size:11px; color:#94a3b8;">换行即可分行展示</span>
-          </label>
-          <textarea id="sub-text" rows="4" style="resize:vertical; line-height:1.5; font-size:14px; font-family:inherit;" placeholder="支持多行文本输入，回车直接换行！例如：&#10;热烈欢迎各位领导与专家&#10;莅临指导参观！"></textarea>
+        <!-- 动态宏变量快捷插入栏 -->
+        <div class="form-row" style="margin-bottom:6px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <label style="margin:0; font-size:13px; font-weight:600;">字幕播报内容 (支持回车多行换行排版)</label>
+            <div style="display:flex; gap:6px;">
+              <button type="button" id="btn-insert-sub-time" class="btn-action-small" style="font-size:11px; padding:3px 8px; background:rgba(56,189,248,0.15); border:1px solid rgba(56,189,248,0.4); color:#38bdf8;" title="插入大屏实时走动时间 (HH:mm:ss)">+ 动态时间 {time}</button>
+              <button type="button" id="btn-insert-sub-date" class="btn-action-small" style="font-size:11px; padding:3px 8px; background:rgba(168,85,247,0.15); border:1px solid rgba(168,85,247,0.4); color:#c084fc;" title="插入年月日星期">+ 日期 {date}</button>
+              <button type="button" id="btn-insert-sub-weather" class="btn-action-small" style="font-size:11px; padding:3px 8px; background:rgba(34,197,94,0.15); border:1px solid rgba(34,197,94,0.4); color:#4ade80;" title="插入实时第三方天气现象与气温">+ 实时天气 {weather}</button>
+            </div>
+          </div>
+          <textarea id="sub-text" rows="4" style="resize:vertical; line-height:1.5; font-size:14px; font-family:inherit;" placeholder="支持多行文本输入，回车直接换行！支持直接输入或点击上方按钮插入 {time}、{date}、{weather}，例如：&#10;热烈欢迎各位领导与专家莅临指导参观！&#10;当前展馆时间：{date} {time} | 当前气象：{weather}"></textarea>
+        </div>
+
+        <!-- 实时天气与时间挂件独立开关 -->
+        <div class="form-row grid-2" style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:10px 12px;">
+          <div>
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+              <input type="checkbox" id="sub-show-time" />
+              <span style="font-weight:600; font-size:13px;">🕒 顶层附带实时时钟挂件</span>
+            </label>
+            <div style="font-size:11px; color:#94a3b8; margin-top:4px;">在大屏字幕卡片上显示秒级跳动高精度时钟</div>
+          </div>
+          <div>
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+              <input type="checkbox" id="sub-show-weather" />
+              <span style="font-weight:600; font-size:13px;">🌤️ 顶层附带第三方实时天气</span>
+            </label>
+            <div style="display:flex; align-items:center; gap:6px; margin-top:4px;">
+              <input type="text" id="sub-city" placeholder="城市名称 (如: 北京/上海/深圳)" style="font-size:12px; padding:3px 8px; height:26px; border-radius:4px; flex:1;" value="北京" />
+            </div>
+          </div>
         </div>
 
         <div class="form-row grid-2">
           <div>
             <label>呈现模式</label>
             <select id="sub-mode">
-              <option value="static">静态居中 (画面正中稳定停留，多行居中排版)</option>
+              <option value="static">多行悬浮居中 (正中高透/毛玻璃卡片，支持多行排版)</option>
+              <option value="multiline_top">多行顶部悬浮 (上)</option>
+              <option value="multiline_bottom">多行底部悬浮 (下)</option>
               <option value="marquee">水平跑马灯 (单行向左连续循环滚动)</option>
             </select>
           </div>
           <div>
             <label>字幕显示位置 (上 / 中 / 下)</label>
             <select id="sub-position">
-              <option value="center">画面居中 (中 - 推荐静态欢迎词/通告)</option>
-              <option value="bottom">底部悬浮 (下 - 推荐常规跑马灯)</option>
-              <option value="top">顶部悬浮 (上)</option>
+              <option value="center">画面居中 (中 - 推荐静态/多行欢迎词与通告)</option>
+              <option value="bottom">底部悬浮 (下 - 推荐常规跑马灯或底边信息条)</option>
+              <option value="top">顶部悬浮 (上 - 推荐顶边展厅通告与天气条)</option>
             </select>
           </div>
         </div>
@@ -1080,14 +1118,14 @@
             <input type="number" id="sub-speed" min="0" max="120" value="20" />
           </div>
           <div id="sub-static-hint" style="display:block;">
-            <label>静态模式特性</label>
+            <label>悬浮模式特性</label>
             <div style="font-size:12px; color:#34d399; line-height:36px; background:rgba(16,185,129,0.1); border:1px solid rgba(16,185,129,0.25); border-radius:6px; padding:0 10px;">
-              ● 已开启静止居中，多行文字自动居中对齐
+              ● 已开启多行悬浮排版，文字居中对齐并支持天气时间动态混排
             </div>
           </div>
           <div>
             <label>文字字号 (px 自定义大小，推荐 48~180)</label>
-            <input type="number" id="sub-fontsize" min="16" max="240" value="80" />
+            <input type="number" id="sub-fontsize" min="16" max="240" value="72" />
           </div>
         </div>
 
@@ -1106,7 +1144,7 @@
 
         <div class="modal-actions" style="margin-top:10px;">
           <button type="button" class="btn-cancel" id="btn-cancel-subtitle">取消</button>
-          <button type="submit" class="btn-save" style="background:linear-gradient(135deg, #10b981, #059669);">立即推送到大屏</button>
+          <button type="submit" class="btn-save" style="background:linear-gradient(135deg, #10b981, #059669);">立即推送到大屏生效</button>
         </div>
       </form>
     </div>

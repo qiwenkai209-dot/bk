@@ -19,8 +19,9 @@ public class HttpResponse {
         HttpResponse res = new HttpResponse();
         res.streamHandler = handler;
         res.contentType = "multipart/x-mixed-replace; boundary=frame";
-        res.headers.put("Cache-Control", "no-cache, private");
+        res.headers.put("Cache-Control", "no-cache, private, no-transform, no-store, must-revalidate");
         res.headers.put("Pragma", "no-cache");
+        res.headers.put("X-Accel-Buffering", "no");
         res.headers.put("Connection", "close");
         return res;
     }
@@ -149,7 +150,11 @@ public class HttpResponse {
         if (streamHandler != null) {
             sb.append("HTTP/1.1 ").append(statusCode).append(" ").append(statusText).append("\r\n");
             sb.append("Content-Type: ").append(contentType).append("\r\n");
+            sb.append("Connection: close\r\n");
             sb.append("Access-Control-Allow-Origin: *\r\n");
+            sb.append("Access-Control-Allow-Headers: *\r\n");
+            sb.append("Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE\r\n");
+            sb.append("X-Accel-Buffering: no\r\n");
             for (Map.Entry<String, String> e : headers.entrySet()) {
                 sb.append(e.getKey()).append(": ").append(e.getValue()).append("\r\n");
             }
@@ -165,6 +170,7 @@ public class HttpResponse {
         sb.append("Access-Control-Allow-Origin: *\r\n");
         sb.append("Access-Control-Allow-Headers: *\r\n");
         sb.append("Access-Control-Allow-Methods: GET, POST, OPTIONS, PUT, DELETE\r\n");
+        sb.append("X-Accel-Buffering: no\r\n");
 
         for (Map.Entry<String, String> e : headers.entrySet()) {
             sb.append(e.getKey()).append(": ").append(e.getValue()).append("\r\n");
