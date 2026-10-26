@@ -43,6 +43,13 @@ public class HttpRouter {
         return instance;
     }
 
+    public static JSONObject getPlayerState() {
+        if (instance != null && instance.playerState != null) {
+            return instance.playerState;
+        }
+        return new JSONObject();
+    }
+
     public static void setGlobalSleepMode(boolean sleep) {
         if (instance != null) {
             synchronized (instance) {
@@ -878,39 +885,39 @@ public class HttpRouter {
                 return HttpResponse.xml(respXml);
             }
 
-            // 11. 多机集群联播接口 (支持主控/从机/独立自由切换与参数固化)
+            // 11. 多机集群联播接口 (对接 ClusterSyncEngine，打通 Windows EXE 与 Android APK)
             if ("/api/sync/role".equals(path) || "/api/sync/status".equals(path) || "/api/cluster/status".equals(path)) {
                 if ("POST".equals(method)) {
                     try {
                         JSONObject b = new JSONObject(req.getBodyText());
                         String newRole = b.optString("role", playerConfig.optString("cluster_role", "STANDALONE")).toUpperCase();
                         playerConfig.put("cluster_role", newRole);
-                        if (b.has("master_ip")) playerConfig.put("master_ip", b.optString("master_ip", ""));
-                        if (b.has("slave_ips")) playerConfig.put("slave_ips", b.optString("slave_ips", ""));
+                        String mIp = b.has("master_ip") ? b.optString("master_ip", "") : playerConfig.optString("master_ip", "");
+                        String sIps = b.has("slave_ips") ? b.optString("slave_ips", "") : playerConfig.optString("slave_ips", "");
+                        playerConfig.put("master_ip", mIp);
+                        playerConfig.put("slave_ips", sIps);
                         savePlayerConfig();
+
+                        ClusterSyncEngine.getInstance(context).updateConfig(newRole, mIp, sIps);
                     } catch (Exception ignored) {}
                 }
-                String currentRole = playerConfig.optString("cluster_role", "STANDALONE");
-                JSONObject res = new JSONObject();
-                res.put("status", "ok");
-                res.put("role", currentRole);
-                res.put("is_master", "MASTER".equals(currentRole));
-                res.put("master_ip", playerConfig.optString("master_ip", ""));
-                res.put("slave_ips", playerConfig.optString("slave_ips", ""));
-                res.put("sync_mode", "UDP_MULTICAST");
-                res.put("is_running", true);
-                res.put("clock_offset_ms", 0.0);
-                res.put("slaves", new JSONArray());
-                res.put("slaves_count", 0);
+                JSONObject res = ClusterSyncEngine.getInstance(context).getClusterStatus();
+                res.put("is_master", "MASTER".equals(res.optString("role", "STANDALONE")));
                 return HttpResponse.json(res.toString());
             }
             if ("/api/sync/config".equals(path) && "POST".equals(method)) {
                 try {
                     JSONObject b = new JSONObject(req.getBodyText());
-                    if (b.has("role")) playerConfig.put("cluster_role", b.optString("role", "STANDALONE").toUpperCase());
-                    if (b.has("master_ip")) playerConfig.put("master_ip", b.optString("master_ip", ""));
-                    if (b.has("slave_ips")) playerConfig.put("slave_ips", b.optString("slave_ips", ""));
+                    String r = b.has("role") ? b.optString("role", "STANDALONE").toUpperCase() : playerConfig.optString("cluster_role", "STANDALONE");
+                    String mIp = b.has("master_ip") ? b.optString("master_ip", "") : playerConfig.optString("master_ip", "");
+                    String sIps = b.has("slave_ips") ? b.optString("slave_ips", "") : playerConfig.optString("slave_ips", "");
+
+                    playerConfig.put("cluster_role", r);
+                    playerConfig.put("master_ip", mIp);
+                    playerConfig.put("slave_ips", sIps);
                     savePlayerConfig();
+
+                    ClusterSyncEngine.getInstance(context).updateConfig(r, mIp, sIps);
                 } catch (Exception ignored) {}
                 JSONObject res = new JSONObject();
                 res.put("status", "ok");
@@ -918,12 +925,40 @@ public class HttpRouter {
                 res.put("message", "集群参数已永久固化");
                 return HttpResponse.json(res.toString());
             }
+            if ("/api/sync/register_slave".equals(path) && "POST".equals(method)) {
+                try {
+                    JSONObject b = new JSONObject(req.getBodyText());
+                    String sNodeId = b.optString("node_id", "");
+                    String clientIp = b.optString("ip", "");
+                    if (clientIp.isEmpty()) {
+                        String xff = req.getHeader("x-forwarded-for");
+                        clientIp = (xff != null) ? xff : "";
+                    }
+                    ClusterSyncEngine.getInstance(context).registerActiveSlave(sNodeId, clientIp, b);
+                } catch (Exception ignored) {}
+                return HttpResponse.json("{\"status\":\"ok\"}");
+            }
+            if ("/api/sync/master_config".equals(path) && "GET".equals(method)) {
+                JSONObject fullCfg = ClusterSyncEngine.getInstance(context).getFullMasterConfig();
+                if (fullCfg == null) fullCfg = new JSONObject();
+                fullCfg.put("status", "ok");
+                return HttpResponse.json(fullCfg.toString());
+            }
+            if ("/api/sync/apply_master_config".equals(path) && "POST".equals(method)) {
+                try {
+                    JSONObject b = new JSONObject(req.getBodyText());
+                    boolean ok = ClusterSyncEngine.getInstance(context).applyMasterFullConfig(b);
+                    return HttpResponse.json(ok ? "{\"status\":\"ok\"}" : "{\"status\":\"error\"}");
+                } catch (Exception e) {
+                    return HttpResponse.error(500, e.getMessage());
+                }
+            }
+            if ("/api/sync/broadcast_full_config".equals(path) && "POST".equals(method)) {
+                ClusterSyncEngine.getInstance(context).broadcastFullConfig();
+                return HttpResponse.json("{\"status\":\"ok\",\"message\":\"已向全网从机广播同步所有设置\"}");
+            }
             if ("/api/sync/config".equals(path) || "/api/sync/nodes".equals(path) || "/api/slaves".equals(path)) {
-                JSONObject res = new JSONObject();
-                res.put("status", "ok");
-                res.put("nodes", new JSONArray());
-                res.put("slaves", new JSONArray());
-                return HttpResponse.json(res.toString());
+                return HttpResponse.json(ClusterSyncEngine.getInstance(context).getClusterStatus().toString());
             }
 
             if ("/api/media/custom".equals(path)) {
@@ -2078,6 +2113,11 @@ public class HttpRouter {
         if (com.visualcast.player.MainActivity.instance != null) {
             com.visualcast.player.MainActivity.instance.dispatchCommandToWeb(action, params);
         }
+        try {
+            if (ClusterSyncEngine.getInstance() != null) {
+                ClusterSyncEngine.getInstance().broadcastMasterCommand(action, params);
+            }
+        } catch (Exception ignored) {}
     }
 
     private void scanMediaDirectory(File baseDir, File currentDir, JSONArray files, Map<String, Integer> folderCounts, Set<String> allFolders) {

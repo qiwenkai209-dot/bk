@@ -416,6 +416,13 @@ public class MainActivity extends AppCompatActivity {
                     android.util.Log.w("VisualCast", "启动定时排程引擎异常: " + e.getMessage());
                 }
 
+                // 8.1 启动毫秒级多机集群联播引擎 (打通 Windows EXE 与 Android APK)
+                try {
+                    com.visualcast.player.server.ClusterSyncEngine.getInstance(MainActivity.this).start();
+                } catch (Exception e) {
+                    android.util.Log.w("VisualCast", "启动多机集群联播引擎异常: " + e.getMessage());
+                }
+
                 // 9. 启动原生级每秒活跃心跳保底打点
                 heartbeatHandler.post(heartbeatRunnable);
 
@@ -918,6 +925,9 @@ public class MainActivity extends AppCompatActivity {
         }
         if (vncServer != null) {
             vncServer.stop();
+        }
+        if (com.visualcast.player.server.ClusterSyncEngine.getInstance() != null) {
+            com.visualcast.player.server.ClusterSyncEngine.getInstance().stop();
         }
         if (com.visualcast.player.server.ScreenStreamEngine.getInstance() != null) {
             com.visualcast.player.server.ScreenStreamEngine.getInstance().stop();

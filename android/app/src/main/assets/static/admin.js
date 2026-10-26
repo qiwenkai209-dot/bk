@@ -2396,7 +2396,7 @@
             });
             const resJson = await res.json();
             if (resJson.status === 'ok') {
-              showAdminToast(`素材已成功重命名为 [${resJson.filename || cleanName}]`, 'success');
+              showToast(`素材已成功重命名为 [${resJson.filename || cleanName}]`, '操作成功');
               fetchMediaLibrary(true);
             } else {
               alert(resJson.message || '重命名失败');
