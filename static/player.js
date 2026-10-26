@@ -414,22 +414,26 @@
       return;
     }
     const playable = cachedMediaList.filter(m => ['video', 'image', 'audio', 'doc', 'web', 'stream'].includes(m.type) || !m.is_custom);
+    // 待机素材核心判定规则：文件夹为“待机”或包含待机/standby关键字，或 is_standby 为 true
+    const standbyItems = playable.filter(m => {
+      const f = (m.folder || '').toLowerCase();
+      return f === '待机' || f === 'standby' || f.startsWith('待机/') || f.startsWith('standby/') || f.includes('待机') || f.includes('standby') || m.is_standby;
+    });
+
     if (loopMode === 'FOLDER_LOOP') {
       let folderItems = [];
       const cfLower = (currentFolder || '').toLowerCase();
       if (cfLower === '待机' || cfLower === 'standby' || cfLower.includes('待机') || cfLower.includes('standby')) {
-        folderItems = playable.filter(m => {
-          const f = (m.folder || '').toLowerCase();
-          return f === '待机' || f === 'standby' || f.startsWith('待机/') || f.startsWith('standby/') || f.includes('待机') || f.includes('standby') || m.is_standby;
-        });
+        folderItems = standbyItems;
       } else {
         folderItems = playable.filter(m => (m.folder || '') === currentFolder || (m.folder || '').startsWith(currentFolder + '/'));
       }
-      currentPlaylist = (folderItems.length > 0) ? folderItems : playable;
+      currentPlaylist = (folderItems.length > 0) ? folderItems : (standbyItems.length > 0 ? standbyItems : playable);
     } else if (loopMode === 'ALL_LOOP') {
-      currentPlaylist = playable;
+      // 业务硬性规则：全部播放/全部轮播模式下，只轮播待机文件夹内容，杜绝未整理杂项穿透
+      currentPlaylist = (standbyItems.length > 0) ? standbyItems : playable;
     } else {
-      currentPlaylist = playable;
+      currentPlaylist = (standbyItems.length > 0) ? standbyItems : playable;
     }
 
     const idx = currentPlaylist.findIndex(m => m.name === currentMediaName);
@@ -445,20 +449,25 @@
       if (mData.status === 'ok') {
         cachedMediaList = mData.media || mData.files || [];
         const playable = cachedMediaList.filter(m => ['video', 'image', 'audio', 'doc', 'web', 'stream'].includes(m.type) || !m.is_custom);
+        const standbyItems = playable.filter(m => {
+          const f = (m.folder || '').toLowerCase();
+          return f === '待机' || f === 'standby' || f.startsWith('待机/') || f.startsWith('standby/') || f.includes('待机') || f.includes('standby') || m.is_standby;
+        });
+
         if (loopMode === 'FOLDER_LOOP') {
           let folderItems = [];
           const cfLower = (currentFolder || '').toLowerCase();
           if (cfLower === '待机' || cfLower === 'standby' || cfLower.includes('待机') || cfLower.includes('standby')) {
-            folderItems = playable.filter(m => {
-              const f = (m.folder || '').toLowerCase();
-              return f === '待机' || f === 'standby' || f.startsWith('待机/') || f.startsWith('standby/') || f.includes('待机') || f.includes('standby') || m.is_standby;
-            });
+            folderItems = standbyItems;
           } else {
             folderItems = playable.filter(m => (m.folder || '') === currentFolder || (m.folder || '').startsWith(currentFolder + '/'));
           }
-          currentPlaylist = (folderItems.length > 0) ? folderItems : playable;
+          currentPlaylist = (folderItems.length > 0) ? folderItems : (standbyItems.length > 0 ? standbyItems : playable);
+        } else if (loopMode === 'ALL_LOOP') {
+          // 全部播放模式下只轮播待机文件夹内容
+          currentPlaylist = (standbyItems.length > 0) ? standbyItems : playable;
         } else {
-          currentPlaylist = playable;
+          currentPlaylist = (standbyItems.length > 0) ? standbyItems : playable;
         }
         const idx = currentPlaylist.findIndex(m => m.name === currentMediaName);
         if (idx !== -1) currentPlayIndex = idx;
@@ -1240,7 +1249,8 @@
       for (let i = 0; i < total; i++) {
         const f = files[i];
         try {
-          const res = await fetch('/api/media/upload_raw', {
+          const uploadUrl = `/api/media/upload_raw?folder=${encodeURIComponent(folder)}&filename=${encodeURIComponent(f.name)}`;
+          const res = await fetch(uploadUrl, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/octet-stream',
@@ -2017,11 +2027,27 @@ function applyCommand(cmd, directParams) {
       case 'WAKEUP':
       case 'BOOT':
       case 'POWERON':
-        console.log('[VisualCast] 收到唤醒指令：解除黑场并播放待机素材');
+        console.log('[VisualCast] 收到唤醒指令：解除黑场、解除静音并播放待机素材');
         isSystemSleeping = false;
         isExplicitlyStopped = false;
         setBlackout(false);
+        videoA.muted = false;
+        videoB.muted = false;
+        if (mainAudioEl) mainAudioEl.muted = false;
         returnToStandby(true);
+        break;
+      case 'TOGGLE_MENU':
+      case 'TOGGLE_PANEL':
+      case 'OPEN_PANEL':
+      case 'CLOSE_PANEL':
+        console.log('[VisualCast] 收到大屏菜单控制指令:', cmd, params);
+        let targetMenuOpen = undefined;
+        if (cmd === 'OPEN_PANEL') targetMenuOpen = true;
+        else if (cmd === 'CLOSE_PANEL') targetMenuOpen = false;
+        else if (params && params.open !== undefined) targetMenuOpen = !!params.open;
+        if (typeof togglePanel === 'function') {
+          togglePanel(targetMenuOpen);
+        }
         break;
       case 'REFRESH_STREAM':
       case 'RELOAD_CURRENT':
@@ -2265,6 +2291,16 @@ function applyCommand(cmd, directParams) {
     loopMode = 'FOLDER_LOOP';
     setBlackout(false);
     setFreeze(false);
+
+    // 唤醒与待机放映核心要求：强制解除静音，确保声音正常输出
+    videoA.muted = false;
+    videoB.muted = false;
+    if (mainAudioEl) mainAudioEl.muted = false;
+    if (activeVideoEl && activeVideoEl.volume <= 0.01) {
+      activeVideoEl.volume = 0.85;
+      if (mainAudioEl) mainAudioEl.volume = 0.85;
+    }
+
     if (blackoutMask) {
       blackoutMask.classList.remove('active');
       blackoutMask.style.display = 'none';
@@ -2300,6 +2336,13 @@ function applyCommand(cmd, directParams) {
       }
     }).catch(() => {});
   }
+  function setMuted(muted) {
+    const isM = !!muted;
+    videoA.muted = isM;
+    videoB.muted = isM;
+    if (mainAudioEl) mainAudioEl.muted = isM;
+  }
+  window.setMuted = setMuted;
   window.returnToStandby = returnToStandby;
   window.applyCommand = applyCommand;
   window.switchMedia = switchMedia;
@@ -2369,11 +2412,18 @@ function applyCommand(cmd, directParams) {
   window.triggerSystemPowerOff = triggerSystemPowerOff;
 
   function triggerSystemPowerOn() {
-    console.log('[VisualCast] 执行唤醒：解除黑场并播放待机素材');
+    console.log('[VisualCast] 执行唤醒：解除黑场、解除静音并播放待机素材');
     isSystemSleeping = false;
     isExplicitlyStopped = false;
     isBlackout = false;
     setBlackout(false);
+    videoA.muted = false;
+    videoB.muted = false;
+    if (mainAudioEl) mainAudioEl.muted = false;
+    if (activeVideoEl && activeVideoEl.volume <= 0.01) {
+      activeVideoEl.volume = 0.85;
+      if (mainAudioEl) mainAudioEl.volume = 0.85;
+    }
     returnToStandby(true);
     // 严格斩断死循环回路：绝不再调用 fetch('/api/system/wakeup')！
   }
@@ -2747,7 +2797,8 @@ function applyCommand(cmd, directParams) {
         scale_mode: currentScaleMode,
         blackout: isBlackout,
         freeze: isFrozen,
-        media_type: currentMediaType
+        media_type: currentMediaType,
+        menu_open: !!isPanelOpen
       };
 
       const syncRes = await fetch('/api/player/sync', {

@@ -386,6 +386,11 @@
           updateTouchModeUI(p.touch_mode);
         }
 
+        // 大屏菜单弹出/收起状态同步
+        if (p.menu_open !== undefined) {
+          updateScreenMenuUI(p.menu_open);
+        }
+
         // 定时关机与节假日排程实时态势与倒计时预警横幅
         if (p.scheduled_shutdown) {
           updateScheduledShutdownIndicator(p.scheduled_shutdown);
@@ -786,7 +791,7 @@
     });
   }
 
-  // 页面与流媒体刷新重载
+  // 页面与流媒体刷新重载 (点击后下发重载指令，并同步重新加载后台回显画面)
   const btnStreamRefresh = document.getElementById('btn-stream-refresh');
   if (btnStreamRefresh) {
     btnStreamRefresh.addEventListener('click', () => {
@@ -795,7 +800,11 @@
       if (currentPlayingFile) {
         sendPlayerCommand('LOAD_AND_PLAY', { media: currentPlayingFile });
       }
-      showToast('已下发流媒体与网页展项刷新重载指令');
+      // 核心要求：点击后重新加载后台实时回显动图流
+      if (typeof reloadEchoStream === 'function') {
+        reloadEchoStream(currentEchoFps, false);
+      }
+      showToast('🔄 已下发流媒体与网页展项刷新指令，并重新加载回显画面', '视窗重载');
     });
   }
 
@@ -1377,6 +1386,44 @@
     btnSysVolMute.addEventListener('click', async () => {
       await fetch('/api/system/volume', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'mute' }) });
       showToast('系统物理静音切换');
+    });
+  }
+  // 视窗与显示控制区：大屏菜单弹出/关闭切换按钮
+  const btnToggleScreenMenu = document.getElementById('btn-toggle-screen-menu');
+  let isScreenMenuOpen = false;
+
+  function updateScreenMenuUI(isOpen) {
+    isScreenMenuOpen = !!isOpen;
+    if (!btnToggleScreenMenu) return;
+    if (isScreenMenuOpen) {
+      btnToggleScreenMenu.classList.add('active');
+      btnToggleScreenMenu.style.color = '#fff';
+      btnToggleScreenMenu.style.borderColor = '#c084fc';
+      btnToggleScreenMenu.style.background = 'linear-gradient(135deg, #a855f7, #9333ea)';
+      btnToggleScreenMenu.style.boxShadow = '0 0 10px rgba(168, 85, 247, 0.4)';
+      btnToggleScreenMenu.textContent = '📑 大屏菜单: 已弹出';
+      btnToggleScreenMenu.title = '大屏端播放抽屉菜单当前已弹出，点击通知大屏关闭收起';
+    } else {
+      btnToggleScreenMenu.classList.remove('active');
+      btnToggleScreenMenu.style.color = '#c084fc';
+      btnToggleScreenMenu.style.borderColor = 'rgba(192,132,252,0.4)';
+      btnToggleScreenMenu.style.background = 'rgba(192,132,252,0.12)';
+      btnToggleScreenMenu.style.boxShadow = 'none';
+      btnToggleScreenMenu.textContent = '📑 大屏菜单';
+      btnToggleScreenMenu.title = '大屏端播放抽屉菜单当前已收起，点击通知大屏弹出菜单';
+    }
+  }
+
+  if (btnToggleScreenMenu) {
+    btnToggleScreenMenu.addEventListener('click', async () => {
+      const targetState = !isScreenMenuOpen;
+      updateScreenMenuUI(targetState);
+      try {
+        await sendPlayerCommand('TOGGLE_MENU', { open: targetState });
+        showToast(targetState ? '已通知大屏弹出播放控制菜单' : '已通知大屏关闭播放控制菜单', '大屏菜单');
+      } catch (err) {
+        showToast('控制大屏菜单异常: ' + err, '错误');
+      }
     });
   }
 

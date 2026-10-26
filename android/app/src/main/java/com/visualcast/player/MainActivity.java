@@ -10,6 +10,7 @@ import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.PowerManager;
+import android.media.AudioManager;
 import android.view.KeyEvent;
 import android.view.View;
 import android.view.Window;
@@ -562,7 +563,7 @@ public class MainActivity extends AppCompatActivity {
         if (!isScreenAsleep) {
             runOnUiThread(() -> {
                 if (webView != null) {
-                    webView.evaluateJavascript("try { if (window.setBlackout) window.setBlackout(false); } catch(e){}", null);
+                    webView.evaluateJavascript("try { if (window.setBlackout) window.setBlackout(false); if (window.setMuted) window.setMuted(false); } catch(e){}", null);
                 }
             });
             return;
@@ -599,18 +600,26 @@ public class MainActivity extends AppCompatActivity {
                     wakeLock.acquire();
                 }
 
-                // 3. 将商显主程序提至最前台并恢复全屏沉浸
+                // 3. 解除系统媒体音量静音
+                AudioManager am = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
+                if (am != null) {
+                    try {
+                        am.setStreamMute(AudioManager.STREAM_MUSIC, false);
+                    } catch (Throwable ignored) {}
+                }
+
+                // 4. 将商显主程序提至最前台并恢复全屏沉浸
                 com.visualcast.player.utils.SystemHelper.bringVisualCastToFront(MainActivity.this);
                 hideSystemUI();
             } catch (Exception ignored) {}
 
-            // 4. WebView 恢复渲染并平滑起播待机素材 (消除多重重复注入)
+            // 5. WebView 恢复渲染、解除静音并平滑起播待机素材
             if (webView != null) {
                 try {
                     webView.onResume();
                     webView.resumeTimers();
                 } catch (Exception ignored) {}
-                String js = "try { if (window.setBlackout) window.setBlackout(false); if (window.returnToStandby) window.returnToStandby(true); } catch(e){}";
+                String js = "try { if (window.setBlackout) window.setBlackout(false); if (window.setMuted) window.setMuted(false); if (window.returnToStandby) window.returnToStandby(true); } catch(e){}";
                 webView.evaluateJavascript(js, null);
             }
         });

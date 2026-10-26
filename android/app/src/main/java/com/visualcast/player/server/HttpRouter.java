@@ -1017,11 +1017,12 @@ public class HttpRouter {
 
             if (("/api/system/boot".equals(path) || "/api/system/power_on".equals(path) || "/api/system/wakeup".equals(path)) && "POST".equals(method)) {
                 setGlobalSleepMode(false);
+                playerConfig.put("muted", false);
                 MainActivity act = MainActivity.getInstance();
                 if (act != null) {
                     act.triggerSleepTransition(false);
                 }
-                return HttpResponse.json("{\"status\":\"ok\",\"message\":\"大屏已唤醒 (播放待机素材，解除黑场)\"}");
+                return HttpResponse.json("{\"status\":\"ok\",\"message\":\"大屏已唤醒 (播放待机素材，解除黑场与静音)\"}");
             }
 
             if ("/api/player/window_mode".equals(path)) {
@@ -1301,6 +1302,10 @@ public class HttpRouter {
                     if ("ALL".equalsIgnoreCase(folder) || "全部".equals(folder) || folder.contains("..")) {
                         folder = "";
                     }
+                }
+                // 播放端/直传硬性规范：若未指定子目录或为根目录，一律默认存入【待机】文件夹
+                if (folder.isEmpty()) {
+                    folder = "待机";
                 }
 
                 File mediaDir = StorageHelper.getMediaDir(context);
@@ -1755,11 +1760,12 @@ public class HttpRouter {
             }
             if ("/api/system/wakeup".equals(path) && "POST".equals(method)) {
                 setGlobalSleepMode(false);
+                playerConfig.put("muted", false);
                 MainActivity act = MainActivity.getInstance();
                 if (act != null) {
                     act.triggerSleepTransition(false);
                 }
-                return HttpResponse.json("{\"status\":\"ok\",\"message\":\"大屏已唤醒 (播放待机素材，解除黑场)\"}");
+                return HttpResponse.json("{\"status\":\"ok\",\"message\":\"大屏已唤醒 (播放待机素材，解除黑场与静音)\"}");
             }
             if ("/api/system/return_to_player".equals(path) && "POST".equals(method)) {
                 SystemHelper.bringVisualCastToFront(context);
