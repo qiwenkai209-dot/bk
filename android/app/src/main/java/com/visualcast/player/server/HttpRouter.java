@@ -1571,6 +1571,111 @@ public class HttpRouter {
                 return HttpResponse.json(res.toString());
             }
 
+            // 5.5 素材安全重命名 API
+            if ("/api/media/rename".equals(path) && "POST".equals(method)) {
+                if (!checkAuth(req)) return HttpResponse.error(401, "未授权");
+                JSONObject b = new JSONObject(req.getBodyText());
+                String oldName = b.optString("old_name", b.optString("name", "")).trim().replace("\\", "/");
+                String newName = b.optString("new_name", "").trim().replace("\\", "/");
+
+                if (oldName.isEmpty()) return HttpResponse.error(400, "原素材名称不能为空");
+                if (newName.isEmpty()) return HttpResponse.error(400, "新素材名称不能为空");
+                if (oldName.contains("..") || newName.contains("..")) return HttpResponse.error(400, "包含非法路径字符");
+
+                File mediaDir = StorageHelper.getMediaDir(context);
+                File srcFile = new File(mediaDir, oldName);
+                if (!srcFile.exists()) return HttpResponse.error(404, "原素材文件不存在");
+
+                String folderPrefix = "";
+                int lastSlash = oldName.lastIndexOf('/');
+                if (lastSlash != -1) {
+                    folderPrefix = oldName.substring(0, lastSlash);
+                }
+
+                String newBase = newName;
+                int newSlash = newBase.lastIndexOf('/');
+                if (newSlash != -1) {
+                    newBase = newBase.substring(newSlash + 1);
+                }
+
+                // 检查扩展名，若未输入则自动继承原扩展名
+                String oldExt = "";
+                int oldDot = srcFile.getName().lastIndexOf('.');
+                if (oldDot != -1) {
+                    oldExt = srcFile.getName().substring(oldDot);
+                }
+                int newDot = newBase.lastIndexOf('.');
+                if (newDot == -1 && !oldExt.isEmpty()) {
+                    newBase = newBase + oldExt;
+                }
+
+                String destRel = folderPrefix.isEmpty() ? newBase : (folderPrefix + "/" + newBase);
+                File destFile = new File(mediaDir, destRel);
+
+                if (srcFile.getAbsolutePath().equals(destFile.getAbsolutePath())) {
+                    JSONObject res = new JSONObject();
+                    res.put("status", "ok");
+                    res.put("message", "素材名称未更改");
+                    res.put("new_name", destRel);
+                    return HttpResponse.json(res.toString());
+                }
+
+                if (destFile.exists()) {
+                    return HttpResponse.error(400, "目标文件名 [" + newBase + "] 已存在，请更换名称");
+                }
+
+                boolean renOk = srcFile.renameTo(destFile);
+                if (!renOk) {
+                    try {
+                        copyFileStream(srcFile, destFile);
+                        srcFile.delete();
+                        renOk = true;
+                    } catch (Exception e) {
+                        return HttpResponse.error(500, "重命名失败: " + e.getMessage());
+                    }
+                }
+
+                // 若是网页流码或自定义条目，联动更新 custom_media.json
+                try {
+                    File cmFile = new File(StorageHelper.getConfigDir(context), "custom_media.json");
+                    if (cmFile.exists()) {
+                        JSONArray cmArr = new JSONArray(readFileToString(cmFile));
+                        boolean cmUpdated = false;
+                        for (int i = 0; i < cmArr.length(); i++) {
+                            JSONObject it = cmArr.optJSONObject(i);
+                            if (it != null) {
+                                String n = it.optString("name", "");
+                                if (n.equals(oldName)) {
+                                    it.put("name", destRel);
+                                    cmUpdated = true;
+                                } else if (n.equals(srcFile.getName())) {
+                                    it.put("name", newBase);
+                                    cmUpdated = true;
+                                }
+                            }
+                        }
+                        if (cmUpdated) {
+                            writeStringToFile(cmFile, cmArr.toString());
+                        }
+                    }
+                } catch (Exception ignored) {}
+
+                // 同步更新播放态
+                try {
+                    if (oldName.equals(playerState.optString("current_media"))) {
+                        playerState.put("current_media", destRel);
+                    }
+                } catch (Exception ignored) {}
+
+                JSONObject res = new JSONObject();
+                res.put("status", "ok");
+                res.put("message", "素材已成功重命名为 [" + newBase + "]");
+                res.put("old_name", oldName);
+                res.put("new_name", destRel);
+                res.put("filename", newBase);
+                return HttpResponse.json(res.toString());
+            }
+
             // 6. 展馆物联控制 API (校验权限)
             if ("/api/iot/devices".equals(path)) {
                 if ("POST".equals(method)) {

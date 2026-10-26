@@ -1887,6 +1887,89 @@ def api_transfer_media():
     except Exception as e:
         return {"status": "error", "message": f"操作失败: {str(e)}"}
 
+@app.route('/api/media/rename', method=['POST'])
+def api_rename_media():
+    """素材重命名接口：安全重命名 media 目录下的素材文件并联动更新 custom_media.json"""
+    try:
+        try:
+            data = json.load(request.body)
+        except Exception:
+            data = request.json or {}
+
+        old_name = (data.get("old_name") or data.get("name") or "").strip().replace('\\', '/')
+        new_name = (data.get("new_name") or "").strip().replace('\\', '/')
+
+        if not old_name:
+            return {"status": "error", "message": "原素材名称不能为空"}
+        if not new_name:
+            return {"status": "error", "message": "新素材名称不能为空"}
+
+        if '..' in old_name or '..' in new_name:
+            return {"status": "error", "message": "文件名包含非法路径字符"}
+
+        src_path = os.path.join(MEDIA_DIR, old_name)
+        if not os.path.exists(src_path):
+            return {"status": "error", "message": "原素材文件不存在"}
+
+        # 确定新文件名与目标路径
+        folder_prefix = os.path.dirname(old_name)
+        new_base = os.path.basename(new_name)
+        old_stem, old_ext = os.path.splitext(os.path.basename(old_name))
+        new_stem, new_ext = os.path.splitext(new_base)
+
+        # 若用户输入未包含扩展名，自动继承原扩展名
+        if not new_ext and old_ext:
+            new_base = f"{new_base}{old_ext}"
+
+        dest_rel = f"{folder_prefix}/{new_base}" if folder_prefix else new_base
+        dest_path = os.path.join(MEDIA_DIR, dest_rel)
+
+        # 若名字完全没变
+        if os.path.abspath(src_path) == os.path.abspath(dest_path):
+            return {"status": "ok", "message": "素材名称未更改", "new_name": dest_rel}
+
+        # 检查目标是否已存在
+        if os.path.exists(dest_path):
+            return {"status": "error", "message": f"目标文件名 [{new_base}] 已存在，请更换名称"}
+
+        # 执行重命名
+        os.rename(src_path, dest_path)
+
+        # 若是网页流码或自定义条目，联动更新 custom_media.json
+        try:
+            c_items = load_custom_media()
+            custom_updated = False
+            for it in c_items:
+                if it.get("name") == old_name:
+                    it["name"] = dest_rel
+                    custom_updated = True
+                elif it.get("name") == os.path.basename(old_name):
+                    it["name"] = new_base
+                    custom_updated = True
+            if custom_updated:
+                save_custom_media(c_items)
+        except Exception:
+            pass
+
+        # 若当前正在播放此素材，同步更新播控器状态中的名称
+        try:
+            with coordinator.lock:
+                if coordinator.status.get("current_media") == old_name:
+                    coordinator.status["current_media"] = dest_rel
+        except Exception:
+            pass
+
+        return {
+            "status": "ok",
+            "message": f"素材已成功重命名为 [{new_base}]",
+            "old_name": old_name,
+            "new_name": dest_rel,
+            "filename": new_base
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"重命名失败: {str(e)}"}
+
+
 @app.route('/api/subtitle', method=['GET', 'POST'])
 def api_subtitle_config():
     """大屏顶层悬浮字幕查询与即时设置"""

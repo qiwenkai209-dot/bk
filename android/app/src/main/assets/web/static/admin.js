@@ -2291,10 +2291,11 @@
         <div class="media-item-actions">
           <button class="btn-play-trigger" title="立即大屏播放此素材">▶ 播</button>
           <div class="media-more-actions-wrap">
-            <button class="btn-item-more" title="展开更多操作 (复制/剪切)">⋯</button>
+            <button class="btn-item-more" title="展开更多操作 (复制/剪切/改名)">⋯</button>
             <div class="media-more-inline hidden">
               <button class="btn-item-copy" title="复制此素材 (可切换至待机或其它分类后粘贴)">📋 复制</button>
               <button class="btn-item-cut" title="剪切此素材 (可移动至待机或其它分类后粘贴)">✂️ 剪切</button>
+              <button class="btn-item-rename" title="重命名此素材">✏️ 改名</button>
               <button class="btn-item-collapse" title="收起">✕</button>
             </div>
           </div>
@@ -2367,6 +2368,44 @@
         closeMore();
         setMediaClipboard('move', m);
       });
+
+      // 重命名点击
+      const renameBtn = row.querySelector('.btn-item-rename');
+      if (renameBtn) {
+        renameBtn.addEventListener('click', async (e) => {
+          e.stopPropagation();
+          closeMore();
+          const currentBase = m.filename || (m.name.includes('/') ? m.name.split('/').pop() : m.name);
+          const dotIdx = currentBase.lastIndexOf('.');
+          const stem = dotIdx !== -1 ? currentBase.substring(0, dotIdx) : currentBase;
+          const ext = dotIdx !== -1 ? currentBase.substring(dotIdx) : '';
+
+          const inputName = prompt(`请输入新的素材名称 (原扩展名 ${ext} 将自动保留)：`, stem);
+          if (!inputName || !inputName.trim() || inputName.trim() === stem) {
+            return;
+          }
+          const cleanName = inputName.trim();
+          try {
+            const res = await fetch('/api/media/rename', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                old_name: m.name,
+                new_name: cleanName
+              })
+            });
+            const resJson = await res.json();
+            if (resJson.status === 'ok') {
+              showAdminToast(`素材已成功重命名为 [${resJson.filename || cleanName}]`, 'success');
+              fetchMediaLibrary(true);
+            } else {
+              alert(resJson.message || '重命名失败');
+            }
+          } catch (err) {
+            alert('重命名请求异常: ' + err.message);
+          }
+        });
+      }
 
       // 删除点击
       row.querySelector('.btn-item-del').addEventListener('click', async (e) => {
